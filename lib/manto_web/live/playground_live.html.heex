@@ -2,7 +2,7 @@
   <!-- Editor -->
   <section style="flex:1;">
     <h2>Markdown Input</h2>
-    <.form for={%{}} as={:playground} phx-change="update">
+    <.form for={@form} phx-change="update">
       <textarea name="markdown"
                 rows="20"
                 style="width:100%;"><%= @markdown %></textarea>

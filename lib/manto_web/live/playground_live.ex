@@ -10,7 +10,9 @@ defmodule MantoWeb.PlaygroundLive do
 
   def mount(_params, _session, socket) do
     html = MDEx.to_html(@default_markdown)
-    {:ok, assign(socket, markdown: @default_markdown, html: html)}
+    form = Phoenix.Component.to_form(%{"markdown" => @default_markdown}, as: :playground)
+
+    {:ok, assign(socket, markdown: @default_markdown, html: html, form: form)}
   end
 
   def handle_event("update", %{"markdown" => body}, socket) do
