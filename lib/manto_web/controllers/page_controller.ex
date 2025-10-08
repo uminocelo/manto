@@ -16,8 +16,9 @@ defmodule MantoWeb.PageController do
       - Emoji shortcode: :smile:
     """
 
-    html = MDEx.new(markdown: markdown, extension: [shortcodes: true])
-            |> MDEx.to_html(extension: [shortcodes: true])
+    html =
+      MDEx.new(markdown: markdown, extension: [shortcodes: true])
+      |> MDEx.to_html(extension: [shortcodes: true])
 
     render(conn, :hello, html: html)
   end

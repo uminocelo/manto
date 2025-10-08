@@ -19,6 +19,10 @@ defmodule MantoWeb.Router do
 
     get "/", PageController, :home
     get "/hello", PageController, :hello
+    # get "/playground", PlaygroundController, :index
+    # post "/playground", PlaygroundController, :render_markdown
+
+    live "/playground", PlaygroundLive
   end
 
   # Other scopes may use custom stacks.
