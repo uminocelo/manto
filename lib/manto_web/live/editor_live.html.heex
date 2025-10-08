@@ -1,0 +1,27 @@
+<main class="container" style="display:flex; gap:2rem;">
+  <!-- Editor -->
+  <section style="flex:1;">
+    <h2>Editing: <%= @page %>.md</h2>
+
+    <.form for={%{}} as={:editor} phx-change="update" phx-submit="save">
+      <textarea name="markdown"
+                rows="20"
+                style="width:100%;"><%= @body %></textarea>
+
+      <div style="margin-top:1rem;">
+        <button type="submit">💾 Save</button>
+        <%= if @saved do %>
+          <span style="color:green; margin-left:1rem;">Saved!</span>
+        <% end %>
+      </div>
+    </.form>
+  </section>
+
+  <!-- Preview -->
+  <section style="flex:1;">
+    <h2>Preview</h2>
+    <div class="prose" style="border:1px solid #ccc; padding:1rem;">
+      <%= Phoenix.HTML.raw(@html) %>
+    </div>
+  </section>
+</main>
