@@ -1,27 +1,32 @@
-<main class="container" style="display:flex; gap:2rem;">
+<main class="flex h-screen bg-gray-50">
+  <!-- Sidebar (optional later) -->
+  
   <!-- Editor -->
-  <section style="flex:1;">
-    <h2>Editing: <%= @page %>.md</h2>
+  <section class="w-1/2 p-6 border-r border-gray-200 bg-white flex flex-col">
+    <h2 class="text-lg font-semibold mb-4">Editing: <%= @page %>.md</h2>
 
-    <.form for={%{}} as={:editor} phx-change="update" phx-submit="save">
+    <.form for={%{}} as={:editor} phx-change="update" phx-submit="save" class="flex flex-col flex-1">
       <textarea name="markdown"
-                rows="20"
-                style="width:100%;"><%= @body %></textarea>
+                class="flex-1 w-full p-4 font-mono text-sm border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                rows="20"><%= @body %></textarea>
 
-      <div style="margin-top:1rem;">
-        <button type="submit">💾 Save</button>
+      <div class="mt-4 flex items-center">
+        <button type="submit"
+                class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+          Save
+        </button>
         <%= if @saved do %>
-          <span style="color:green; margin-left:1rem;">Saved!</span>
+          <span class="ml-3 text-green-600">Saved!</span>
         <% end %>
       </div>
     </.form>
   </section>
 
   <!-- Preview -->
-  <section style="flex:1;">
-    <h2>Preview</h2>
-    <div class="prose" style="border:1px solid #ccc; padding:1rem;">
+  <section class="w-1/2 p-6 overflow-y-auto">
+    <h2 class="text-lg font-semibold mb-4">Preview</h2>
+    <article class="prose max-w-none">
       <%= Phoenix.HTML.raw(@html) %>
-    </div>
+    </article>
   </section>
 </main>
