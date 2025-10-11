@@ -1,8 +1,4 @@
-# Welcome to Manto
+# Welcome to Manto!
 
-This is your first local page.  
+This is your first local page.
 Edit me in `priv/content/welcome.md` or through the web editor!
-
-ok
-
-really saved?
