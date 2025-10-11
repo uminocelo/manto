@@ -18,9 +18,6 @@ defmodule MantoWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
-    get "/hello", PageController, :hello
-
-    live "/playground", PlaygroundLive
     live "/editor", EditorLive
   end
 
