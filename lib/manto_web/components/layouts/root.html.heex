@@ -7,6 +7,8 @@
     <.live_title default="Manto" suffix=" · Markdown Editor">
       {assigns[:page_title]}
     </.live_title>
+
+    <link rel="icon" type="image/x-icon" href={~p"/favicon.ico"} />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
@@ -36,12 +38,5 @@
     </header>
 
     {@inner_content}
-
-    <script>
-      const btn = document.getElementById("theme-toggle");
-      btn.addEventListener("click", () => {
-        document.documentElement.classList.toggle("dark");
-      });
-    </script>
   </body>
 </html>
