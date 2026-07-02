@@ -2,6 +2,7 @@
    https://tailwindcss.com/docs/configuration */
 
 @import "tailwindcss" source(none);
+@plugin "@tailwindcss/typography"; /* fix for the preview to render markdown correctly, alucarddz */
 @source "../css";
 @source "../js";
 @source "../../lib/manto_web";

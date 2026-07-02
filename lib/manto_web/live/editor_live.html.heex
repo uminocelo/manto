@@ -1,33 +1,78 @@
-<main class="flex h-[calc(100vh-68px)] bg-gray-50 dark:bg-gray-900">
-  <!-- Editor -->
-  <section class="w-1/2 p-6 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
-    <h2 class="text-lg font-semibold mb-4">Editing: <%= @page %>.md</h2>
+<Layouts.flash_group flash={@flash} />
 
-    <.form for={%{}} as={:editor} phx-change="update" phx-submit="save" class="flex flex-col flex-1">
-      <textarea name="markdown"
-                class="flex-1 w-full p-4 font-mono text-sm border rounded-md
+<main class="flex h-[calc(100vh-68px)] bg-gray-50 dark:bg-gray-900">
+  <nav class="w-48 shrink-0 p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto">
+    <h2 class="text-sm font-semibold uppercase text-gray-500 mb-2">Pages</h2>
+    <ul>
+      <li :for={p <- @pages}>
+        <.link
+          navigate={~p"/editor/#{p}"}
+          class={[
+            "block px-2 py-1 rounded text-sm",
+            if(p == @page,
+              do: "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200",
+              else: "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+            )
+          ]}
+        >
+          {p}
+        </.link>
+      </li>
+    </ul>
+
+    <form phx-submit="new_page" class="mt-4 flex gap-1">
+      <input
+        type="text"
+        name="name"
+        placeholder="New page..."
+        class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+      />
+      <button
+        type="submit"
+        class="px-2 py-1 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+      >
+        New
+      </button>
+    </form>
+  </nav>
+  
+  <section class="flex-1 p-6 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
+    <h2 class="text-lg font-semibold mb-4">
+      Editing: {Map.get(@metadata, "title", @page)}
+      <span class="text-gray-400 text-sm">({@page}.md)</span>
+    </h2>
+
+    <.form
+      for={%{}}
+      as={:editor}
+      phx-change="update"
+      phx-submit="save"
+      class="flex flex-col flex-1"
+    >
+      <textarea
+        name="markdown"
+        class="flex-1 w-full p-4 font-mono text-sm border rounded-md
                        bg-gray-50 dark:bg-gray-900
                        text-gray-900 dark:text-gray-100
                        focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                rows="20"><%= @body %></textarea>
+        rows="20"
+      ><%= @body %></textarea>
 
       <div class="mt-4 flex items-center">
-        <button type="submit"
-                class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+        <button
+          type="submit"
+          class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+        >
           Save
         </button>
-        <%= if @saved do %>
-          <span class="ml-3 text-green-600 dark:text-green-400">Saved!</span>
-        <% end %>
       </div>
     </.form>
   </section>
-
-  <!-- Preview -->
-  <section class="w-1/2 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+  
+  <section class="flex-1 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
     <h2 class="text-lg font-semibold mb-4">Preview</h2>
     <article class="prose dark:prose-invert max-w-none">
-      <%= Phoenix.HTML.raw(@html) %>
+      {Phoenix.HTML.raw(@html)}
     </article>
   </section>
 </main>

@@ -19,6 +19,7 @@ defmodule MantoWeb.Router do
 
     get "/", PageController, :home
     live "/editor", EditorLive
+    live "/editor/:page", EditorLive # new route, :page = path parameter
   end
 
   # Other scopes may use custom stacks.

@@ -9,6 +9,7 @@ erl_crash.dump
 manto-*.tar
 /priv/static/assets/
 /priv/static/cache_manifest.json
+/priv/static_site/
 npm-debug.log
 node_modules/
 /assets/node_modules/
