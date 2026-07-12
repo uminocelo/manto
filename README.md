@@ -52,13 +52,15 @@ manto/
 
 [x] Local content folder
 
-[ ] Page navigation & wiki‑style links
+[x] Page navigation & wiki‑style links
 
-[ ] Metadata (frontmatter)
+[x] Metadata (frontmatter)
 
-[ ] Static site generator mode
+[x] Static site generator mode
 
-[ ] Theming and publishing
+[x] Theming 
+
+[] Publishing
 
 
 

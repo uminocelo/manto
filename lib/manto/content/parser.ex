@@ -5,15 +5,75 @@ defmodule Manto.Content.Parser do
 
   alias MDEx
 
+  @mdex_opts [extension: [front_matter_delimiter: "---", table: true]]
+  @wiki_link_regex ~r/\[\[([^\]]+)\]\]/
+
   @doc """
   Render Markdown into safe HTML string.
+
+  Wiki-style `[[Page Name]]` links are rewritten to `\#{link_prefix}Slug\#{link_suffix}`
+  (defaults to editor links, e.g. `/editor/Slug`; the static build uses `Slug.html` instead).
+  Front matter (if present) is stripped from the output.
+
   Always returns a binary, never a tuple.
   """
-  def render_html(markdown) when is_binary(markdown) do
-    case MDEx.to_html(markdown) do
+  @spec render_html(String.t(), keyword()) :: String.t()
+  def render_html(markdown, opts \\ []) when is_binary(markdown) do
+    markdown
+    |> rewrite_wiki_links(opts)
+    |> MDEx.to_html(@mdex_opts)
+    |> case do
       {:ok, html} -> html
-      html when is_binary(html) -> html
       _ -> ""
+    end
+  end
+
+  @doc """
+  Extract front matter as a string-keyed map, e.g. `---\\ntitle: Hi\\n---` -> %{"title" => "Hi"}.
+
+  Returns an empty map when there's no front matter.
+  """
+  @spec metadata(String.t()) :: map()
+  def metadata(markdown) when is_binary(markdown) do
+    with {:ok, doc} <- MDEx.parse_document(markdown, @mdex_opts),
+         %MDEx.FrontMatter{literal: literal} <-
+           Enum.find(doc.nodes, &match?(%MDEx.FrontMatter{}, &1)) do
+      parse_front_matter(literal)
+    else
+      _ -> %{}
+    end
+  end
+
+  defp rewrite_wiki_links(markdown, opts) do
+    prefix = Keyword.get(opts, :link_prefix, "/editor/")
+    suffix = Keyword.get(opts, :link_suffix, "")
+
+    Regex.replace(@wiki_link_regex, markdown, fn _, name ->
+      slug = String.replace(String.trim(name), " ", "-")
+      "[#{name}](#{prefix}#{slug}#{suffix})"
+    end)
+  end
+
+  defp parse_front_matter(literal) do
+    literal
+    |> String.split("\n")
+    |> Enum.reduce(%{}, &add_front_matter_line/2)
+  end
+
+  defp add_front_matter_line(line, acc) do
+    case parse_front_matter_line(line) do
+      {key, value} -> Map.put(acc, key, value)
+      :skip -> acc
+    end
+  end
+
+  defp parse_front_matter_line(line) do
+    with [key, value] <- String.split(line, ":", parts: 2),
+         key = String.trim(key),
+         true <- key != "" do
+      {key, String.trim(value)}
+    else
+      _ -> :skip
     end
   end
 end

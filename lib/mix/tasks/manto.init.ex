@@ -16,10 +16,18 @@ defmodule Mix.Tasks.Manto.Init do
     File.mkdir_p!(content_dir)
 
     welcome_path = Path.join(content_dir, "welcome.md")
+
     unless File.exists?(welcome_path) do
       Mix.shell().info("Seeding welcome.md...")
+
       File.write!(welcome_path, """
-      # Welcome to Manto!
+      ---
+      title: Welcome to Manto!
+      author: uminocelo
+      created: #{DateTime.utc_now() |> DateTime.to_iso8601()}
+      ---
+
+      # This is Manto!
 
       This is your first local page.
       Edit me in `priv/content/welcome.md` or through the web editor!
