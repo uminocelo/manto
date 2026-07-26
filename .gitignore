@@ -19,3 +19,4 @@ assets/node_modules/
 .elixir_ls/
 *.swp
 .DS_Store
+/priv/content/*
