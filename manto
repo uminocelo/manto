@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+STATE_DIR="$ROOT_DIR/.manto"
+PID_FILE="$STATE_DIR/server.pid"
+LOG_FILE="$STATE_DIR/server.log"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  manto start
+  manto stop
+  manto status
+  manto logs
+  manto install
+
+Environment:
+  PHX_HOST   Host name used by Phoenix (default: localhost)
+  PORT       Port used by Phoenix (default: 4000)
+  MIX_ENV    Mix environment (default: dev)
+EOF
+}
+
+ensure_state_dir() {
+  mkdir -p "$STATE_DIR"
+}
+
+pid_is_running() {
+  [[ -f "$PID_FILE" ]] || return 1
+
+  local pid
+  pid="$(cat "$PID_FILE")"
+
+  kill -0 "$pid" 2>/dev/null
+}
+
+start_server() {
+  if pid_is_running; then
+    echo "Manto is already running (pid $(cat "$PID_FILE"))."
+    exit 0
+  fi
+
+  ensure_state_dir
+  : > "$LOG_FILE"
+
+  local host port
+  host="${PHX_HOST:-localhost}"
+  port="${PORT:-4000}"
+
+  nohup env \
+    MIX_ENV="${MIX_ENV:-dev}" \
+    PHX_HOST="$host" \
+    PORT="$port" \
+    mix phx.server >>"$LOG_FILE" 2>&1 &
+
+  echo $! > "$PID_FILE"
+
+  echo "Manto is starting in the background."
+  echo "Open http://localhost:${port}/"
+
+  if [[ "$host" != "localhost" ]]; then
+    echo "If http://${host}:${port}/ does not resolve locally, add 127.0.0.1 ${host} to /etc/hosts."
+  fi
+}
+
+stop_server() {
+  if ! pid_is_running; then
+    echo "Manto is not running."
+    exit 0
+  fi
+
+  kill "$(cat "$PID_FILE")"
+  rm -f "$PID_FILE"
+  echo "Manto stopped."
+}
+
+status_server() {
+  if pid_is_running; then
+    echo "Manto is running (pid $(cat "$PID_FILE"))."
+  else
+    echo "Manto is not running."
+  fi
+}
+
+install_launcher() {
+  local install_dir install_path
+
+  for install_dir in "$HOME/.local/bin" "$HOME/bin"; do
+    if mkdir -p "$install_dir" 2>/dev/null; then
+      install_path="$install_dir/manto"
+      ln -sf "$ROOT_DIR/manto" "$install_path"
+      echo "Installed launcher at $install_path"
+      echo "Make sure $install_dir is on your PATH, then run: manto start"
+      return 0
+    fi
+  done
+
+  echo "Could not create a launcher in ~/.local/bin or ~/bin."
+  exit 1
+}
+
+case "${1:-start}" in
+  start)
+    start_server
+    ;;
+  stop)
+    stop_server
+    ;;
+  status)
+    status_server
+    ;;
+  logs)
+    ensure_state_dir
+    touch "$LOG_FILE"
+    tail -f "$LOG_FILE"
+    ;;
+  install)
+    install_launcher
+    ;;
+  help|--help|-h)
+    usage
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac

@@ -3,7 +3,7 @@ defmodule MantoWeb.PageController do
   alias MDEx
 
   def home(conn, _params) do
-    render(conn, :home)
+    redirect(conn, to: ~p"/editor/welcome")
   end
 
   def hello(conn, _params) do

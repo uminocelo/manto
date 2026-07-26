@@ -23,11 +23,28 @@ Clone and run locally:
 git clone https://github.com/uminocelo/manto
 cd manto
 mix setup
-mix phx.server
+./manto start
 ```
 
-Open http://localhost:4000/editor in your browser. 
+Open http://localhost:4000/ in your browser. It redirects into the editor.
+
+If you want the app to answer on a custom local host name, start it like this:
+
+```bash
+PHX_HOST=manto.local PORT=4000 ./manto start
+```
+
+Then add `127.0.0.1 manto.local` to your hosts file once so the name resolves locally.
+
+After the launcher is installed into your PATH, you can use `manto start` from any terminal.
+
 Start editing `priv/content/welcome.md` and see changes live.
+
+To install the launcher once for your shell:
+
+```bash
+./manto install
+```
 
 
 ## 📂 Project Structure
