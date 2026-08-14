@@ -224,16 +224,47 @@ Code touchpoints:
 - `lib/mix/tasks/manto.build.ex:58-80` — `page_template/1`
 - `priv/themes/*.css` — theme copy already handled at `manto.build.ex:38-39`
 
-## M8 — PWA / offline (in progress)
+## M8 — PWA / offline — [x] done
 
-Uncommitted work exists: `assets/js/service-worker.js`, `assets/manifest.json`, the
-manifest link + SW registration script in `root.html.heex`, and `static_paths`
-updated in `lib/manto_web.ex:20`.
+The service worker was previously an inline registration script pointing at a
+non-existent `/js/service-worker.js` (the file lives under `assets/js/`), the
+manifest link pointed at `/assets/manifest.json` (never emitted, 404), and the
+referenced app icons didn't exist.
 
 - Bundle `service-worker.js` through esbuild/`app.js` instead of the inline
   registration script (inline scripts violate the repo convention in AGENTS.md)
-- Fix the path mismatch: registered at `/js/service-worker.js`, file lives under `assets/js/`
+- Fix the path mismatch: register at `/service-worker.js`, emit the worker to the
+  site root so its scope covers the whole app
 - Commit `manifest.json` + `service-worker.js` once wired and tested
+
+Status notes:
+
+- New `service_worker` esbuild instance (`config/config.exs`) emits
+  `assets/js/service-worker.js` → `priv/static/service-worker.js` (via
+  `--outbase=js`), wired into `assets.build`, `assets.deploy`, and a dev watcher;
+  the emitted file is committed so offline works on a fresh clone
+- Registration moved out of `root.html.heex` into `assets/js/app.js` (root scope,
+  `/service-worker.js`); the inline `<script>` is gone
+- Worker now `skipWaiting()` + `clients.claim()`, purges stale caches on
+  activate, caches the app shell at install, uses network-first for navigations
+  (cache fallback) and cache-first for other same-origin GETs
+- `manifest.json` moved to `priv/static/manifest.json` (committed; was
+  `assets/manifest.json` and never served); `root.html.heex` links
+  `~p"/manifest.json"`
+- Generated solid-brand (`#df4f00`) `priv/static/images/icon-192.png` +
+  `icon-512.png` referenced by the manifest (192px icon is required for
+  installability)
+- New `test/manto/pwa_test.exs`: manifest shape, icon presence, worker emitted,
+  root page links manifest + no inline registration, and both `/manifest.json`
+  and `/service-worker.js` are actually served; suite is 57 tests, 0 failures
+
+Code touchpoints:
+
+- `config/config.exs:34-42` — esbuild instances (`manto`, `service_worker`)
+- `lib/manto_web/components/layouts/root.html.heex:7` — manifest link
+- `assets/js/app.js` — service worker registration
+- `lib/manto_web.ex:20-21` — `static_paths` already listed `manifest.json`,
+  `service-worker.js`, `images`
 
 ## Housekeeping
 
@@ -241,5 +272,4 @@ updated in `lib/manto_web.ex:20`.
   `/`, `/editor`, `/editor/:page`)
 - **Error handling**: `Content.save_page/2` uses `File.write!` with no rescue path;
   surface write failures as error flashes instead of crashing
-- **Re-run gate**: every milestone must pass `mix precommit` (see AGENTS.md) — note
-  M4 is required before the suite is fully green
+- **Re-run gate**: every milestone must pass `mix precommit` (see AGENTS.md)

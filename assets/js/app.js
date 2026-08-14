@@ -82,3 +82,14 @@ if (process.env.NODE_ENV === "development") {
   })
 }
 
+// Register the service worker for PWA / offline support.
+// The worker is bundled to /service-worker.js (root scope) by esbuild's
+// `service_worker` config so it controls the whole app.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/service-worker.js")
+      .catch((error) => console.error("Service worker registration failed:", error))
+  })
+}
+
