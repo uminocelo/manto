@@ -82,4 +82,16 @@ date: not-a-date
     assert html =~ "<th>Month</th>"
     assert html =~ "<td>$250</td>"
   end
+
+  test "render_html/1 renders emoji shortcodes" do
+    assert Parser.render_html(":smile: :fire:") =~ "😄 🔥"
+    assert Parser.render_html(":smile:") =~ "😄"
+  end
+
+  test "render_html/1 syntax-highlights fenced code blocks" do
+    html = Parser.render_html("```elixir\nEnum.map([1, 2], &(&1 * 2))\n```")
+
+    assert html =~ ~s(<code class="language-elixir")
+    assert html =~ ~s(<pre class="athl")
+  end
 end

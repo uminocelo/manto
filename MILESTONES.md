@@ -135,7 +135,7 @@ Code touchpoints:
 - `lib/manto_web/live/editor_live.ex:17-19` — `"update"` only reassigns in memory
 - `test/manto_web/live/editor_live_test.exs:5,21` — the failing tests
 
-## M5 — Rich MDEx rendering
+## M5 — Rich MDEx rendering — [x] done
 
 The parser enables only `front_matter_delimiter` + `table` (`parser.ex:8`), while
 MDEx ships emoji shortcodes and built-in syntax highlighting — both already proven
@@ -144,6 +144,19 @@ in the (unused) `hello/2` action (`page_controller.ex:20-21`).
 - Add `shortcodes` and syntax highlighting to `@mdex_opts` so editor preview and
   static builds render them
 - Keep `render_html/2` returning a plain string; prefer opt-in options over always-on
+
+Status notes:
+
+- `@mdex_opts` now sets `extension: [front_matter_delimiter: "---", table: true,
+  shortcodes: true]` plus an explicit `syntax_highlight: [formatter:
+  {:html_inline, theme: "onedark"}]` (MDEx's default theme, now visible/controllable
+  instead of implicit)
+- Only opt-in extensions are enabled (no always-on kitchen sink); both consumers go
+  through `render_html/2` so the editor preview (`editor_live.ex:126`) and static
+  build (`manto.build.ex:54`) render emoji + highlighted code for free
+- New parser tests: `:smile:` → 😄, and fenced code emits `<code class="language-…"`
+  with an `athl` highlighted `<pre>`
+- Suite: 37 tests, 0 failures
 
 Code touchpoints:
 
