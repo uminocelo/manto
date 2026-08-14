@@ -45,7 +45,7 @@ Code touchpoints:
   upgrade this depends on)
 - `lib/manto_web/live/editor_live.html.heex:4` — page list in the sidebar
 
-## M2 — Page delete & rename
+## M2 — Page delete & rename — [x] done
 
 `Manto.Content` can list, read, and write but never delete or rename; the editor
 has no such actions. Pages can only be created and saved.
@@ -54,9 +54,18 @@ has no such actions. Pages can only be created and saved.
 - Editor toolbar actions with confirm; error flash on failure (missing file, etc.)
 - Tests: delete removes the file, rename updates the sidebar, cleanup via `on_exit`
 
+Status notes:
+
+- `delete_page/1` returns `:ok | {:error, :not_found | reason}`; `rename_page/2`
+  guards `:not_found` (source missing) and `:already_exists` (target present)
+- Editor has a rename form (sluggified target) and a `phx-confirm` delete button
+  in the editing pane; both refresh the sidebar and `push_navigate` on success
+- Success flashes rely on `put_flash` + `push_navigate`, so they are affected by
+  the M4 flash bug — new tests assert navigation + file effects, not the flash
+
 Code touchpoints:
 
-- `lib/manto/content/content.ex` — only `list_pages/1`, `get_page/1`, `save_page/2`
+- `lib/manto/content/content.ex` — only `list_pages/1` (opts), `get_page/1`, `save_page/2`
 - `lib/manto_web/live/editor_live.ex:21` — `"save"` event is the only mutating path
 - `lib/manto_web/live/editor_live.html.heex:23` — new-page form is the only page action
 

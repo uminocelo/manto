@@ -77,4 +77,60 @@ defmodule MantoWeb.EditorLiveTest do
     {:ok, view, _html} = live(conn, "/editor/welcome")
     refute has_element?(view, "#draft-badge")
   end
+
+  test "renames the current page and navigates to the new name", %{conn: conn} do
+    page = "Rename-Ed-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    File.write!(path, "# #{page}")
+    on_exit(fn -> File.rm(path) end)
+
+    new_name = "Renamed-Ed-#{System.unique_integer([:positive])}"
+    new_path = Path.join([:code.priv_dir(:manto), "content", "#{new_name}.md"])
+    on_exit(fn -> File.rm(new_path) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    {:error, {:live_redirect, %{to: to}}} =
+      view
+      |> form("form[phx-submit=rename_page]", %{name: new_name})
+      |> render_submit()
+
+    assert to == "/editor/#{new_name}"
+    refute File.exists?(path)
+    assert File.exists?(new_path)
+  end
+
+  test "warns via flash when renaming to an existing page", %{conn: conn} do
+    page = "Rename-Occupied-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    File.write!(path, "# #{page}")
+    on_exit(fn -> File.rm(path) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    html =
+      view
+      |> form("form[phx-submit=rename_page]", %{name: "welcome"})
+      |> render_submit()
+
+    assert html =~ "already exists"
+    assert File.exists?(path)
+  end
+
+  test "deletes the current page and navigates to the editor root", %{conn: conn} do
+    page = "Delete-Ed-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    File.write!(path, "# #{page}")
+    on_exit(fn -> File.rm(path) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    {:error, {:live_redirect, %{to: to}}} =
+      view
+      |> element("button[phx-click=delete_page]")
+      |> render_click()
+
+    assert to == "/editor"
+    refute File.exists?(path)
+  end
 end

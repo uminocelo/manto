@@ -53,6 +53,31 @@
       {if @metadata["published_at"], do: "Published #{@metadata["published_at"]}"}
       {if @metadata["updated_at"], do: " · Updated #{@metadata["updated_at"]}"}
     </p>
+    <div class="flex items-center gap-2 mb-4">
+      <form phx-submit="rename_page" class="flex gap-1">
+        <input
+          type="text"
+          name="name"
+          value={@page}
+          placeholder="New name..."
+          class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+        />
+        <button
+          type="submit"
+          class="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
+        >
+          Rename
+        </button>
+      </form>
+      <button
+        type="button"
+        phx-click="delete_page"
+        phx-confirm={"Delete \"#{@page}\"?"}
+        class="px-2 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+      >
+        Delete
+      </button>
+    </div>
 
     <.form
       for={%{}}

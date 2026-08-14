@@ -53,4 +53,46 @@ defmodule Manto.Content do
     path = Path.join(@content_dir, "#{name}.md")
     File.write!(path, body)
   end
+
+  @doc """
+  Delete a page file.
+
+  Returns `:ok` on success, `{:error, :not_found}` when the page doesn't exist,
+  or `{:error, reason}` when the file system refuses.
+  """
+  def delete_page(name) do
+    path = Path.join(@content_dir, "#{name}.md")
+
+    case File.rm(path) do
+      :ok -> :ok
+      {:error, :enoent} -> {:error, :not_found}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Rename a page file.
+
+  Returns `:ok` on success, `{:error, :not_found}` when the source page doesn't
+  exist, `{:error, :already_exists}` when the target already has a file, or
+  `{:error, reason}` when the file system refuses.
+  """
+  def rename_page(from, to) do
+    source = Path.join(@content_dir, "#{from}.md")
+    target = Path.join(@content_dir, "#{to}.md")
+
+    cond do
+      not File.exists?(source) ->
+        {:error, :not_found}
+
+      File.exists?(target) ->
+        {:error, :already_exists}
+
+      true ->
+        case File.rename(source, target) do
+          :ok -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
 end

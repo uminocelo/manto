@@ -36,4 +36,33 @@ defmodule Manto.ContentTest do
 
     assert draft in Content.list_draft_pages()
   end
+
+  test "delete_page/1 removes the page file" do
+    page = write_page(unique("Delete"), "# Delete me")
+    assert :ok = Content.delete_page(page)
+    refute page in Content.list_pages()
+  end
+
+  test "delete_page/1 returns :not_found for a missing page" do
+    assert {:error, :not_found} = Content.delete_page(unique("Missing"))
+  end
+
+  test "rename_page/2 renames the page file" do
+    from = write_page(unique("Rename"), "# Rename me")
+    to = unique("Renamed")
+    on_exit(fn -> File.rm(Path.join([:code.priv_dir(:manto), "content", "#{to}.md"])) end)
+
+    assert :ok = Content.rename_page(from, to)
+    refute from in Content.list_pages()
+    assert to in Content.list_pages()
+    assert Content.get_page(to) == "# Rename me"
+  end
+
+  test "rename_page/2 guards against missing sources and existing targets" do
+    assert {:error, :not_found} = Content.rename_page(unique("Missing"), unique("Target"))
+
+    from = write_page(unique("RenameFrom"), "# From")
+    existing = write_page(unique("Existing"), "# Existing")
+    assert {:error, :already_exists} = Content.rename_page(from, existing)
+  end
 end

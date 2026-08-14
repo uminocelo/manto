@@ -62,6 +62,55 @@ defmodule MantoWeb.EditorLive do
     end
   end
 
+  def handle_event("rename_page", %{"name" => name}, socket) do
+    from = socket.assigns.page
+
+    case String.trim(name) |> String.replace(" ", "-") do
+      "" ->
+        {:noreply, socket}
+
+      to ->
+        if to == from do
+          {:noreply, put_flash(socket, :error, "New name is the same as the current name.")}
+        else
+          case Content.rename_page(from, to) do
+            :ok ->
+              socket =
+                socket
+                |> assign(pages: Content.list_pages(), draft_pages: Content.list_draft_pages())
+                |> put_flash(:info, "\"#{from}\" renamed to \"#{to}\".")
+                |> push_navigate(to: ~p"/editor/#{to}")
+
+              {:noreply, socket}
+
+            {:error, :already_exists} ->
+              {:noreply, put_flash(socket, :error, "\"#{to}\" already exists.")}
+
+            {:error, _reason} ->
+              {:noreply, put_flash(socket, :error, "Could not rename \"#{from}\".")}
+          end
+        end
+    end
+  end
+
+  def handle_event("delete_page", _params, socket) do
+    page = socket.assigns.page
+
+    case Content.delete_page(page) do
+      :ok ->
+        socket =
+          socket
+          |> assign(pages: Content.list_pages(), draft_pages: Content.list_draft_pages())
+          |> put_flash(:info, "\"#{page}\" deleted.")
+          |> push_navigate(to: ~p"/editor")
+
+        {:noreply, socket}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Could not delete \"#{page}\".")}
+    end
+  end
+
   defp load_page(socket, page, body, opts) do
     metadata = Parser.metadata(body)
 
