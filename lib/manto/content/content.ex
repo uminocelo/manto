@@ -48,6 +48,25 @@ defmodule Manto.Content do
     end
   end
 
+  @doc """
+  Return the slugified `[[wiki link]]` targets in `markdown` that don't match
+  any existing page.
+
+  Options:
+
+    * `:include_drafts` - when `false`, links to draft pages count as broken
+      (their pages won't be published). Defaults to `true`.
+  """
+  @spec broken_wiki_links(String.t(), String.t() | nil, keyword()) :: [String.t()]
+  def broken_wiki_links(markdown, current_page \\ nil, opts \\ []) do
+    existing = list_pages(opts)
+
+    markdown
+    |> Parser.wiki_link_targets()
+    |> Enum.reject(&(&1 == current_page))
+    |> Enum.reject(&(&1 in existing))
+  end
+
   @doc "Save Markdown body to a page (creates or overwrites)"
   def save_page(name, body) do
     path = Path.join(@content_dir, "#{name}.md")

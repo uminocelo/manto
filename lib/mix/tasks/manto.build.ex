@@ -48,29 +48,44 @@ defmodule Mix.Tasks.Manto.Build do
     draft_count = Content.list_draft_pages() |> length()
 
     # get content and creates html file
-    for name <- pages do
-      body = Content.get_page(name)
-      metadata = Parser.metadata(body)
-      html = Parser.render_html(body, link_prefix: "", link_suffix: ".html")
-      title = Map.get(metadata, "title", name)
+    broken_links =
+      for name <- pages do
+        body = Content.get_page(name)
+        metadata = Parser.metadata(body)
+        html = Parser.render_html(body, link_prefix: "", link_suffix: ".html")
+        title = Map.get(metadata, "title", name)
 
-      File.write!(
-        Path.join(output_dir, "#{name}.html"),
-        page_template(
-          title: title,
-          body: html,
-          pages: pages,
-          current: name,
-          published_at: Map.get(metadata, "published_at"),
-          updated_at: Map.get(metadata, "updated_at")
+        broken = Content.broken_wiki_links(body, name, include_drafts: false)
+
+        File.write!(
+          Path.join(output_dir, "#{name}.html"),
+          page_template(
+            title: title,
+            body: html,
+            pages: pages,
+            current: name,
+            published_at: Map.get(metadata, "published_at"),
+            updated_at: Map.get(metadata, "updated_at")
+          )
         )
-      )
-    end
+
+        if broken == [], do: nil, else: {name, broken}
+      end
+      |> Enum.reject(&is_nil/1)
 
     skipped = if draft_count == 0, do: "", else: " (skipped #{draft_count} draft(s))"
 
     # prints success message
     Mix.shell().info("Built #{length(pages)} page(s) into #{output_dir}/#{skipped}")
+
+    if broken_links != [] do
+      Mix.shell().info("\nBroken links:")
+
+      for {name, broken} <- broken_links do
+        links = Enum.map_join(broken, ", ", &"[[#{&1}]]")
+        Mix.shell().info("  * #{name}.html -> #{links}")
+      end
+    end
   end
 
   # template for each page

@@ -65,9 +65,27 @@ defmodule Manto.Content.Parser do
     suffix = Keyword.get(opts, :link_suffix, "")
 
     Regex.replace(@wiki_link_regex, markdown, fn _, name ->
-      slug = String.replace(String.trim(name), " ", "-")
+      slug = slugify(name)
       "[#{name}](#{prefix}#{slug}#{suffix})"
     end)
+  end
+
+  @doc """
+  Extract the slugified targets of all `[[wiki links]]` in the markdown, e.g.
+  `[[Other Page]]` becomes `"Other-Page"`. Duplicates are removed. Use this to
+  cross-check links against existing pages.
+  """
+  @spec wiki_link_targets(String.t()) :: [String.t()]
+  def wiki_link_targets(markdown) when is_binary(markdown) do
+    Regex.scan(@wiki_link_regex, markdown)
+    |> Enum.map(fn [_, name] -> slugify(name) end)
+    |> Enum.uniq()
+  end
+
+  defp slugify(name) do
+    name
+    |> String.trim()
+    |> String.replace(" ", "-")
   end
 
   defp parse_front_matter(literal) do

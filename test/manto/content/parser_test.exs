@@ -94,4 +94,14 @@ date: not-a-date
     assert html =~ ~s(<code class="language-elixir")
     assert html =~ ~s(<pre class="athl")
   end
+
+  test "wiki_link_targets/1 extracts slugified, deduplicated targets" do
+    md = "See [[Other Page]], [[Other Page]] again, and [[Missing]]."
+
+    assert Parser.wiki_link_targets(md) == ["Other-Page", "Missing"]
+  end
+
+  test "wiki_link_targets/1 returns an empty list without wiki links" do
+    assert Parser.wiki_link_targets("No links here.") == []
+  end
 end

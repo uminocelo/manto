@@ -65,4 +65,24 @@ defmodule Manto.ContentTest do
     existing = write_page(unique("Existing"), "# Existing")
     assert {:error, :already_exists} = Content.rename_page(from, existing)
   end
+
+  test "broken_wiki_links/3 flags only missing targets" do
+    existing = write_page(unique("Existing"), "# Existing")
+
+    assert Content.broken_wiki_links("See [[#{existing}]] and [[Nope-ABC]].") == ["Nope-ABC"]
+  end
+
+  test "broken_wiki_links/3 ignores self-links" do
+    page = unique("Self")
+    write_page(page, "See [[#{page}]] and [[Nope-ABC]].")
+
+    assert Content.broken_wiki_links("See [[#{page}]] and [[Nope-ABC]].", page) == ["Nope-ABC"]
+  end
+
+  test "broken_wiki_links/3 treats draft targets as broken when publishing only" do
+    draft = write_page(unique("Draft"), "---\ndraft: true\n---\n# Draft")
+
+    assert Content.broken_wiki_links("See [[#{draft}]].") == []
+    assert Content.broken_wiki_links("See [[#{draft}]].", nil, include_drafts: false) == [draft]
+  end
 end

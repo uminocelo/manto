@@ -148,4 +148,29 @@ defmodule MantoWeb.EditorLiveTest do
     assert to == "/editor"
     refute File.exists?(path)
   end
+
+  test "lists broken wiki links in the sidebar and updates them while typing", %{conn: conn} do
+    page = "Broken-Ed-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    File.write!(path, "See [[Missing-One-ABC]].")
+    on_exit(fn -> File.rm(path) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    assert has_element?(view, "#broken-links")
+    assert has_element?(view, "#broken-links li", "Missing-One-ABC")
+
+    html =
+      view
+      |> form("form[phx-submit=save]", %{markdown: "Fixed, no links left."})
+      |> render_change()
+
+    refute html =~ "broken-links"
+    assert html =~ "Fixed, no links left."
+  end
+
+  test "hides the broken-links section when there are none", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/editor/welcome")
+    refute has_element?(view, "#broken-links")
+  end
 end

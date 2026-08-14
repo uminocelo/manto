@@ -126,6 +126,7 @@ defmodule MantoWeb.EditorLive do
       html: Parser.render_html(body),
       metadata: metadata,
       draft: Parser.draft?(metadata),
+      broken_links: Content.broken_wiki_links(body, page),
       saved: Keyword.get(opts, :saved, false),
       new: Keyword.get(opts, :new, false)
     )

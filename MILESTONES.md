@@ -163,13 +163,29 @@ Code touchpoints:
 - `lib/manto/content/parser.ex:8` — `@mdex_opts`
 - `lib/manto_web/controllers/page_controller.ex:19-23` — working shortcode example
 
-## M6 — Wiki-link integrity
+## M6 — Wiki-link integrity — [x] done
 
 `rewrite_wiki_links/2` rewrites `[[X]]` to `/editor/X` without checking the target
 exists, so broken links render silently.
 
 - After rewriting, cross-check targets against `Content.list_pages/0`
 - Surface broken links in the editor sidebar and in static build output (a warnings list)
+
+Status notes:
+
+- `Parser.wiki_link_targets/1` extracts slugified `[[...]]` targets (same
+  slugification as the rewrite, deduplicated); the shared slug helper was
+  factored out of `rewrite_wiki_links/2`
+- `Content.broken_wiki_links/3` cross-checks targets against `list_pages/0`,
+  ignores self-links (pass `current_page`), and supports
+  `include_drafts: false` so the static build flags links to unpublished drafts
+- Editor sidebar shows a `#broken-links` section listing `[[missing]]` targets;
+  recomputed on every keystroke via `load_page`
+- `mix manto.build` prints a per-page warnings list after the build summary
+  (e.g. `* foo.html -> [[Nope]], [[Also-Missing]]`) — verified manually too
+- New tests: parser (targets extraction), content (broken/self/draft targets),
+  editor (sidebar section + removal while typing), build (shell warnings via
+  `Mix.Shell.Process`); suite is 45 tests, 0 failures
 
 Code touchpoints:
 
