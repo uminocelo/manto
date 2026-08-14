@@ -192,7 +192,7 @@ Code touchpoints:
 - `lib/manto/content/parser.ex:47-55` — `rewrite_wiki_links/2`
 - `lib/mix/tasks/manto.build.ex:41-56` — where a per-build warnings report would print
 
-## M7 — Static site generator v2
+## M7 — Static site generator v2 — [x] done
 
 `manto.build` emits one hardcoded `<html>` shell per page with a plain nav
 (`manto.build.ex:58-80`). No site config, index, or feed.
@@ -200,6 +200,24 @@ Code touchpoints:
 - `manto.site` config (title, base URL) read from `config/` or a `manto.json`
 - Generate `index.html`, `rss.xml`, `sitemap.xml`; copy static assets (images)
 - Optional per-page `tags` taxonomy pages
+
+Status notes:
+
+- New `Manto.Site` module reads `manto.json` (project root, `:path` override)
+  merged over `Application.get_env(:manto, :site)` merged over defaults
+  (`title`, `description`, `base_url`); invalid JSON raises a friendly error
+- `manto.build` now collects `page_data` once and emits alongside the pages:
+  - `index.html` — site title/description + linked page list (with dates)
+  - `rss.xml` — RSS 2.0 feed; `pubDate` from `published_at` (Date/DateTime
+    aware via `Calendar.strftime`), base-URL links, XML-escaped titles
+  - `sitemap.xml` — `<url>` entries with base-URL `loc` + optional `lastmod`
+  - content images (`**/*.{png,jpg,jpeg,gif,svg,webp}`) copied into the output
+  - `tag/<tag>.html` taxonomy pages per `tags:` front matter, linked from a
+    `<p class="tags">` block on each page (slugified, downcased)
+- Page `<title>` now includes the site title and nav gained a Home link
+- New tests: `Manto.Site` (defaults / merge precedence / invalid JSON) and 4
+  build tests (index+rss+sitemap, pubDate+base_url, image copy, tag pages);
+  suite is 52 tests, 0 failures
 
 Code touchpoints:
 
