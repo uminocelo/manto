@@ -69,7 +69,7 @@ Code touchpoints:
 - `lib/manto_web/live/editor_live.ex:21` — `"save"` event is the only mutating path
 - `lib/manto_web/live/editor_live.html.heex:23` — new-page form is the only page action
 
-## M3 — Real front matter parsing
+## M3 — Real front matter parsing — [x] done
 
 Front matter is parsed with `String.split(line, ":", parts: 2)` — no YAML lists,
 booleans, or dates. `tags: a, b` becomes the plain string `"a, b"`. This blocks
@@ -80,9 +80,23 @@ M1 (drafts) and tags taxonomies.
   and `manto.build.ex:45`)
 - Test matrix covering list/boolean/date values and malformed input
 
+Status notes:
+
+- `parse_value/1` now types booleans, integers, comma-separated lists, YAML
+  `- item` block lists, and ISO 8601 `Date`/`DateTime` structs; matching
+  surrounding quotes are stripped, malformed dates stay strings, and empty or
+  blank lines are skipped
+- Block lists accumulate onto the current key's value via `add_front_matter_line/2`
+  (tracking the last parsed key), so `authors:` + `- a` lines produce a list
+- `metadata/1` still returns a string-keyed map; existing consumers
+  (`editor_live.ex`, `manto.build.ex`) are unchanged and their tests pass
+- Parser test suite grew to 10 tests (list/boolean/date/quote/malformed matrix);
+  suite is 34 tests with only the 2 known M4 flash failures
+
 Code touchpoints:
 
-- `lib/manto/content/parser.ex:57-78` — `parse_front_matter/1` + `parse_front_matter_line/1`
+- `lib/manto/content/parser.ex` — `parse_value/1` (`:88`), `parse_front_matter/1` +
+  `add_front_matter_line/2` (`:73`), `parse_front_matter_line/1` (`:86`)
 - `test/manto/content/parser_test.exs:5` — existing metadata tests to extend
 
 ## M4 — Editor flash bug (fix) + unsaved-changes guard

@@ -31,9 +31,11 @@ defmodule Manto.Content.Parser do
   @doc """
   Extract front matter as a string-keyed map, e.g. `---\\ntitle: Hi\\n---` -> %{"title" => "Hi"}.
 
-  Values are typed: `true`/`false` become booleans and bare integers become
-  integers; everything else stays a string. Returns an empty map when there's
-  no front matter.
+  Values are typed: `true`/`false` become booleans, bare integers become
+  integers, ISO 8601 dates/datetimes become `Date`/`DateTime` structs,
+  comma-separated values and YAML `- item` blocks become lists, and matching
+  surrounding quotes are stripped. Everything else stays a string. Returns an
+  empty map when there's no front matter.
   """
   @spec metadata(String.t()) :: map()
   def metadata(markdown) when is_binary(markdown) do
@@ -68,13 +70,24 @@ defmodule Manto.Content.Parser do
   defp parse_front_matter(literal) do
     literal
     |> String.split("\n")
-    |> Enum.reduce(%{}, &add_front_matter_line/2)
+    |> Enum.reduce({%{}, nil}, &add_front_matter_line/2)
+    |> elem(0)
   end
 
-  defp add_front_matter_line(line, acc) do
-    case parse_front_matter_line(line) do
-      {key, value} -> Map.put(acc, key, value)
-      :skip -> acc
+  defp add_front_matter_line(line, {acc, current_key}) do
+    trimmed = String.trim(line)
+
+    # YAML block list: "- item" lines append to the value of the current key
+    if Regex.match?(~r/^-\s+/, trimmed) and not is_nil(current_key) do
+      item = trimmed |> String.trim_leading("-") |> String.trim()
+      existing = Map.get(acc, current_key, [])
+      items = if is_list(existing), do: existing, else: []
+      {Map.put(acc, current_key, items ++ [item]), current_key}
+    else
+      case parse_front_matter_line(line) do
+        {key, value} -> {Map.put(acc, key, value), key}
+        :skip -> {acc, current_key}
+      end
     end
   end
 
@@ -93,7 +106,36 @@ defmodule Manto.Content.Parser do
       value == "true" -> true
       value == "false" -> false
       value =~ ~r/^-?\d+$/ -> String.to_integer(value)
-      true -> value
+      is_quoted?(value) -> String.slice(value, 1, String.length(value) - 2)
+      value == "" -> value
+      String.contains?(value, ",") -> parse_list(value)
+      true -> parse_date_or_string(value)
     end
+  end
+
+  defp parse_list(value) do
+    value
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp parse_date_or_string(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      _ -> parse_datetime_or_string(value)
+    end
+  end
+
+  defp parse_datetime_or_string(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> datetime
+      _ -> value
+    end
+  end
+
+  defp is_quoted?(value) do
+    (String.starts_with?(value, "\"") and String.ends_with?(value, "\"")) or
+      (String.starts_with?(value, "'") and String.ends_with?(value, "'"))
   end
 end

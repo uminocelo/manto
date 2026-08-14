@@ -3,13 +3,50 @@ defmodule Manto.Content.ParserTest do
   alias Manto.Content.Parser
 
   test "metadata/1 reads front matter into a map" do
-    md = "---\ntitle: Hello\ntags: a, b\n---\n\n# Body"
-    assert Parser.metadata(md) == %{"title" => "Hello", "tags" => "a, b"}
+    md = "---\ntitle: Hello\n---\n\n# Body"
+    assert Parser.metadata(md) == %{"title" => "Hello"}
   end
 
   test "metadata/1 types booleans and integers" do
     md = "---\ndraft: true\npublished: false\npriority: 3\n---"
     assert Parser.metadata(md) == %{"draft" => true, "published" => false, "priority" => 3}
+  end
+
+  test "metadata/1 parses comma-separated and YAML block lists" do
+    md = "---\ntags: a, b, c\nauthors:\n  - uminocelo\n  - alucarddz\n---"
+
+    assert Parser.metadata(md) == %{
+             "tags" => ["a", "b", "c"],
+             "authors" => ["uminocelo", "alucarddz"]
+           }
+  end
+
+  test "metadata/1 parses ISO dates and datetimes" do
+    md = """
+    ---
+    date: 2026-08-13
+    created: 2026-08-13T10:30:00Z
+    ---
+    """
+
+    metadata = Parser.metadata(md)
+    assert metadata["date"] == ~D[2026-08-13]
+    assert metadata["created"] == ~U[2026-08-13 10:30:00Z]
+  end
+
+  test "metadata/1 strips matching quotes and keeps malformed values as strings" do
+    md = ~S(---
+title: "Hello, World"
+draft: maybe
+date: not-a-date
+---
+)
+
+    assert Parser.metadata(md) == %{
+             "title" => "Hello, World",
+             "draft" => "maybe",
+             "date" => "not-a-date"
+           }
   end
 
   test "metadata/1 returns an empty map without front matter" do
