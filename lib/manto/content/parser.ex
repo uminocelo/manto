@@ -5,7 +5,10 @@ defmodule Manto.Content.Parser do
 
   alias MDEx
 
-  @mdex_opts [extension: [front_matter_delimiter: "---", table: true]]
+  @mdex_opts [
+    extension: [front_matter_delimiter: "---", table: true, shortcodes: true],
+    syntax_highlight: [formatter: {:html_inline, theme: "onedark"}]
+  ]
   @wiki_link_regex ~r/\[\[([^\]]+)\]\]/
 
   @doc """
@@ -31,7 +34,11 @@ defmodule Manto.Content.Parser do
   @doc """
   Extract front matter as a string-keyed map, e.g. `---\\ntitle: Hi\\n---` -> %{"title" => "Hi"}.
 
-  Returns an empty map when there's no front matter.
+  Values are typed: `true`/`false` become booleans, bare integers become
+  integers, ISO 8601 dates/datetimes become `Date`/`DateTime` structs,
+  comma-separated values and YAML `- item` blocks become lists, and matching
+  surrounding quotes are stripped. Everything else stays a string. Returns an
+  empty map when there's no front matter.
   """
   @spec metadata(String.t()) :: map()
   def metadata(markdown) when is_binary(markdown) do
@@ -44,26 +51,64 @@ defmodule Manto.Content.Parser do
     end
   end
 
+  @doc """
+  Whether a metadata map describes a draft: either `draft: true` or
+  `published: false`. Pages without either key are treated as published.
+  """
+  @spec draft?(map()) :: boolean()
+  def draft?(metadata) when is_map(metadata) do
+    Map.get(metadata, "draft", false) == true or Map.get(metadata, "published", true) == false
+  end
+
   defp rewrite_wiki_links(markdown, opts) do
     prefix = Keyword.get(opts, :link_prefix, "/editor/")
     suffix = Keyword.get(opts, :link_suffix, "")
 
     Regex.replace(@wiki_link_regex, markdown, fn _, name ->
-      slug = String.replace(String.trim(name), " ", "-")
+      slug = slugify(name)
       "[#{name}](#{prefix}#{slug}#{suffix})"
     end)
+  end
+
+  @doc """
+  Extract the slugified targets of all `[[wiki links]]` in the markdown, e.g.
+  `[[Other Page]]` becomes `"Other-Page"`. Duplicates are removed. Use this to
+  cross-check links against existing pages.
+  """
+  @spec wiki_link_targets(String.t()) :: [String.t()]
+  def wiki_link_targets(markdown) when is_binary(markdown) do
+    Regex.scan(@wiki_link_regex, markdown)
+    |> Enum.map(fn [_, name] -> slugify(name) end)
+    |> Enum.uniq()
+  end
+
+  defp slugify(name) do
+    name
+    |> String.trim()
+    |> String.replace(" ", "-")
   end
 
   defp parse_front_matter(literal) do
     literal
     |> String.split("\n")
-    |> Enum.reduce(%{}, &add_front_matter_line/2)
+    |> Enum.reduce({%{}, nil}, &add_front_matter_line/2)
+    |> elem(0)
   end
 
-  defp add_front_matter_line(line, acc) do
-    case parse_front_matter_line(line) do
-      {key, value} -> Map.put(acc, key, value)
-      :skip -> acc
+  defp add_front_matter_line(line, {acc, current_key}) do
+    trimmed = String.trim(line)
+
+    # YAML block list: "- item" lines append to the value of the current key
+    if Regex.match?(~r/^-\s+/, trimmed) and not is_nil(current_key) do
+      item = trimmed |> String.trim_leading("-") |> String.trim()
+      existing = Map.get(acc, current_key, [])
+      items = if is_list(existing), do: existing, else: []
+      {Map.put(acc, current_key, items ++ [item]), current_key}
+    else
+      case parse_front_matter_line(line) do
+        {key, value} -> {Map.put(acc, key, value), key}
+        :skip -> {acc, current_key}
+      end
     end
   end
 
@@ -71,9 +116,47 @@ defmodule Manto.Content.Parser do
     with [key, value] <- String.split(line, ":", parts: 2),
          key = String.trim(key),
          true <- key != "" do
-      {key, String.trim(value)}
+      {key, parse_value(String.trim(value))}
     else
       _ -> :skip
     end
+  end
+
+  defp parse_value(value) do
+    cond do
+      value == "true" -> true
+      value == "false" -> false
+      value =~ ~r/^-?\d+$/ -> String.to_integer(value)
+      is_quoted?(value) -> String.slice(value, 1, String.length(value) - 2)
+      value == "" -> value
+      String.contains?(value, ",") -> parse_list(value)
+      true -> parse_date_or_string(value)
+    end
+  end
+
+  defp parse_list(value) do
+    value
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp parse_date_or_string(value) do
+    case Date.from_iso8601(value) do
+      {:ok, date} -> date
+      _ -> parse_datetime_or_string(value)
+    end
+  end
+
+  defp parse_datetime_or_string(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> datetime
+      _ -> value
+    end
+  end
+
+  defp is_quoted?(value) do
+    (String.starts_with?(value, "\"") and String.ends_with?(value, "\"")) or
+      (String.starts_with?(value, "'") and String.ends_with?(value, "'"))
   end
 end

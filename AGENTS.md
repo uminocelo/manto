@@ -1,48 +1,42 @@
-This is a web application written using the Phoenix web framework.
+# Manto
+
+Manto ("cloak" in Portuguese) is a local-first Markdown CMS built with Phoenix LiveView. Content lives as plain `.md` files under `priv/content/` — there is no database.
+
+## Commands
+
+- `mix setup` — full setup: `deps.get`, `assets.setup`, `assets.build`, then `mix manto.init` (seeds `priv/content/welcome.md`)
+- `mix phx.server` — dev server at http://localhost:4000 (editor at `/editor`)
+- `mix precommit` — required gate before finishing changes (runs in `:test` env): `compile --warning-as-errors`, `deps.unlock --unused`, `format`, `test`
+- `mix test` — all tests; one file: `mix test test/manto_web/live/editor_live_test.exs`; last failures: `mix test --failed`
+- `mix manto.init` — seed `priv/content/welcome.md` if missing
+- `mix manto.build [--output DIR] [--theme NAME]` — static site generator; renders every page to standalone HTML in `priv/static_site` by default, using a theme CSS from `priv/themes/*.css`
+
+## Architecture
+
+- `lib/manto/` — core app. `Manto.Content` reads/writes pages from `priv/content/*.md`; `Manto.Content.Parser` wraps MDEx (front matter, GFM tables, and `[[wiki links]]` rewritten to `/editor/Slug` links)
+- `lib/manto_web/` — web layer. `MantoWeb.EditorLive` (`/editor` and `/editor/:page`) is the split-pane Markdown editor; `MantoWeb.PageController` serves `/`
+- No auth, no DB, and no `live_session` in the router — ignore generic guidance about `current_scope`/authenticated routes
+- The editor template renders its own full-page layout and begins with `<Layouts.flash_group flash={@flash} />` rather than wrapping in `<Layouts.app>`
+- App module is `Manto`, web module is `MantoWeb`
+
+## Gotchas
+
+- **`priv/content/*` is gitignored** — pages are not in version control. Run `mix manto.init` (or `mix setup`) after a fresh clone; `editor_live_test.exs` and `manto.build_test.exs` depend on seeded content (`welcome.md`)
+- Editor tests write real `.md` files into `priv/content/` and clean up via `on_exit`
+- **2 editor tests currently fail** (flash assertions after `put_flash` + `push_navigate`; pre-existing on `main`): `test/manto_web/live/editor_live_test.exs`
+- `mix precommit` runs `deps.unlock --unused`, which can modify `mix.lock`
+
+## Styling & assets
+
+- Tailwind v4: `app.css` uses `@import "tailwindcss" source(none)` plus `@source` directives (pointing at `lib/manto_web`), and `@plugin` for `@tailwindcss/typography`, vendored `heroicons`, and **daisyUI** (vendored in `assets/vendor/`, updated via curl — see comments in `app.css`)
+- daisyUI ships two custom themes (light/dark) via `@plugin "daisyui-theme"`; dark mode is driven by the `data-theme` attribute on `<html>` through `@custom-variant dark` in `app.css`. The `darkMode: "class"` setting in `tailwind.config.js` is vestigial
+- Only the `app.js`/`app.css` bundles exist — vendor deps must be imported into them, never linked directly in layouts. Use the `<.icon name="hero-...">` component for icons
+- Do not add inline `<script>` tags to templates except the existing theme script in `root.html.heex` (inline to avoid theme flash); put new JS in `assets/js/` and import from `app.js`
+- This app's forms use plain `phx-submit` forms with raw `<textarea>`/`<input>` fields (see `editor_live.html.heex`), not `<.form>` + `<.input>` — keep that pattern when editing the editor
 
 ## Project guidelines
 
-- Use `mix precommit` alias when you are done with all changes and fix any pending issues
-- Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
-
-### Phoenix v1.8 guidelines
-
-- **Always** begin your LiveView templates with `<Layouts.app flash={@flash} ...>` which wraps all inner content
-- The `MyAppWeb.Layouts` module is aliased in the `my_app_web.ex` file, so you can use it without needing to alias it again
-- Anytime you run into errors with no `current_scope` assign:
-  - You failed to follow the Authenticated Routes guidelines, or you failed to pass `current_scope` to `<Layouts.app>`
-  - **Always** fix the `current_scope` error by moving your routes to the proper `live_session` and ensure you pass `current_scope` as needed
-- Phoenix v1.8 moved the `<.flash_group>` component to the `Layouts` module. You are **forbidden** from calling `<.flash_group>` outside of the `layouts.ex` module
-- Out of the box, `core_components.ex` imports an `<.icon name="hero-x-mark" class="w-5 h-5"/>` component for for hero icons. **Always** use the `<.icon>` component for icons, **never** use `Heroicons` modules or similar
-- **Always** use the imported `<.input>` component for form inputs from `core_components.ex` when available. `<.input>` is imported and using it will will save steps and prevent errors
-- If you override the default input classes (`<.input class="myclass px-2 py-1 rounded-lg">)`) class with your own values, no default classes are inherited, so your
-custom classes must fully style the input
-
-### JS and CSS guidelines
-
-- **Use Tailwind CSS classes and custom CSS rules** to create polished, responsive, and visually stunning interfaces.
-- Tailwindcss v4 **no longer needs a tailwind.config.js** and uses a new import syntax in `app.css`:
-
-      @import "tailwindcss" source(none);
-      @source "../css";
-      @source "../js";
-      @source "../../lib/my_app_web";
-
-- **Always use and maintain this import syntax** in the app.css file for projects generated with `phx.new`
-- **Never** use `@apply` when writing raw css
-- **Always** manually write your own tailwind-based components instead of using daisyUI for a unique, world-class design
-- Out of the box **only the app.js and app.css bundles are supported**
-  - You cannot reference an external vendor'd script `src` or link `href` in the layouts
-  - You must import the vendor deps into app.js and app.css to use them
-  - **Never write inline <script>custom js</script> tags within templates**
-
-### UI/UX & design guidelines
-
-- **Produce world-class UI designs** with a focus on usability, aesthetics, and modern design principles
-- Implement **subtle micro-interactions** (e.g., button hover effects, and smooth transitions)
-- Ensure **clean typography, spacing, and layout balance** for a refined, premium look
-- Focus on **delightful details** like hover effects, loading states, and smooth page transitions
-
+- Use the included `:req` (Req) library for HTTP requests; avoid `:httpoison`, `:tesla`, and `:httpc`
 
 <!-- usage-rules-start -->
 
@@ -82,7 +76,7 @@ custom classes must fully style the input
 - Elixir's standard library has everything necessary for date and time manipulation. Familiarize yourself with the common `Time`, `Date`, `DateTime`, and `Calendar` interfaces by accessing their documentation as necessary. **Never** install additional dependencies unless asked or for date/time parsing (which you can use the `date_time_parser` package)
 - Don't use `String.to_atom/1` on user input (memory leak risk)
 - Predicate function names should not start with `is_` and should end in a question mark. Names like `is_thing` should be reserved for guards
-- Elixir's builtin OTP primitives like `DynamicSupervisor` and `Registry`, require names in the child spec, such as `{DynamicSupervisor, name: MyApp.MyDynamicSup}`, then you can use `DynamicSupervisor.start_child(MyApp.MyDynamicSup, child_spec)`
+- Elixir's builtin OTP primitives like `DynamicSupervisor` and `Registry`, require names in the child spec, such as `{DynamicSupervisor, name: Manto.SomeDynamicSup}`, then you can use `DynamicSupervisor.start_child(Manto.SomeDynamicSup, child_spec)`
 - Use `Task.async_stream(collection, callback, options)` for concurrent enumeration with back-pressure. The majority of times you will want to pass `timeout: :infinity` as option
 
 ## Mix guidelines
@@ -99,13 +93,13 @@ custom classes must fully style the input
 
 - You **never** need to create your own `alias` for route definitions! The `scope` provides the alias, ie:
 
-      scope "/admin", AppWeb.Admin do
+      scope "/admin", MantoWeb.Admin do
         pipe_through :browser
 
         live "/users", UserLive, :index
       end
 
-  the UserLive route would point to the `AppWeb.Admin.UserLive` module
+  the UserLive route would point to the `MantoWeb.Admin.UserLive` module
 
 - `Phoenix.View` no longer is needed or included with Phoenix, don't use it
 <!-- phoenix:phoenix-end -->
@@ -117,7 +111,7 @@ custom classes must fully style the input
 - **Always** use the imported `Phoenix.Component.form/1` and `Phoenix.Component.inputs_for/1` function to build forms. **Never** use `Phoenix.HTML.form_for` or `Phoenix.HTML.inputs_for` as they are outdated
 - When building forms **always** use the already imported `Phoenix.Component.to_form/2` (`assign(socket, form: to_form(...))` and `<.form for={@form} id="msg-form">`), then access those forms in the template via `@form[:field]`
 - **Always** add unique DOM IDs to key elements (like forms, buttons, etc) when writing templates, these IDs can later be used in tests (`<.form for={@form} id="product-form">`)
-- For "app wide" template imports, you can import/alias into the `my_app_web.ex`'s `html_helpers` block, so they will be available to all LiveViews, LiveComponent's, and all modules that do `use MyAppWeb, :html` (replace "my_app" by the actual app name)
+- For "app wide" template imports, you can import/alias into the `manto_web.ex`'s `html_helpers` block, so they will be available to all LiveViews, LiveComponent's, and all modules that do `use MantoWeb, :html`
 
 - Elixir supports `if/else` but **does NOT support `if/else if` or `if/elsif`. **Never use `else if` or `elseif` in Elixir**, **always** use `cond` or `case` for multiple conditionals.
 
@@ -194,7 +188,7 @@ custom classes must fully style the input
 
 - **Never** use the deprecated `live_redirect` and `live_patch` functions, instead **always** use the `<.link navigate={href}>` and  `<.link patch={href}>` in templates, and `push_navigate` and `push_patch` functions LiveViews
 - **Avoid LiveComponent's** unless you have a strong, specific need for them
-- LiveViews should be named like `AppWeb.WeatherLive`, with a `Live` suffix. When you go to add LiveView routes to the router, the default `:browser` scope is **already aliased** with the `AppWeb` module, so you can just do `live "/weather", WeatherLive`
+- LiveViews should be named like `MantoWeb.EditorLive`, with a `Live` suffix. When you go to add LiveView routes to the router, the default `:browser` scope is **already aliased** with the `MantoWeb` module, so you can just do `live "/weather", WeatherLive`
 - Remember anytime you use `phx-hook="MyHook"` and that js hook manages its own DOM, you **must** also set the `phx-update="ignore"` attribute
 - **Never** write embedded `<script>` tags in HEEx. Instead always write your scripts and hooks in the `assets/js` directory and integrate them with the `assets/js/app.js` file
 
@@ -279,14 +273,14 @@ You can also specify a name to nest the params:
 
 When using changesets, the underlying data, form params, and errors are retrieved from it. The `:as` option is automatically computed too. E.g. if you have a user schema:
 
-    defmodule MyApp.Users.User do
+    defmodule Manto.Users.User do
       use Ecto.Schema
       ...
     end
 
 And then you create a changeset that you pass to `to_form`:
 
-    %MyApp.Users.User{}
+    %Manto.Users.User{}
     |> Ecto.Changeset.change()
     |> to_form()
 

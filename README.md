@@ -60,7 +60,7 @@ manto/
 
 [x] Theming 
 
-[] Publishing
+[x] Publishing (drafts hidden from static builds, published/updated dates)
 
 
 

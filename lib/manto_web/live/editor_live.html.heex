@@ -16,6 +16,11 @@
           ]}
         >
           {p}
+          <%= if p in @draft_pages do %>
+            <span class="ml-1 text-xs font-medium uppercase text-amber-600 dark:text-amber-400">
+              draft
+            </span>
+          <% end %>
         </.link>
       </li>
     </ul>
@@ -34,22 +39,77 @@
         New
       </button>
     </form>
+
+    <%= if @broken_links != [] do %>
+      <div id="broken-links" class="mt-6">
+        <h3 class="text-sm font-semibold uppercase text-gray-500 mb-2">Broken links</h3>
+        <ul class="space-y-1">
+          <li
+            :for={target <- @broken_links}
+            class="text-sm text-red-600 dark:text-red-400"
+          >
+            [[{target}]]
+          </li>
+        </ul>
+      </div>
+    <% end %>
   </nav>
-  
+
   <section class="flex-1 p-6 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
     <h2 class="text-lg font-semibold mb-4">
       Editing: {Map.get(@metadata, "title", @page)}
       <span class="text-gray-400 text-sm">({@page}.md)</span>
+      <%= if @draft do %>
+        <span id="draft-badge" class="ml-2 badge badge-warning badge-sm">Draft</span>
+      <% end %>
     </h2>
+    <p class="text-xs text-gray-400 mb-2">
+      {if @metadata["published_at"], do: "Published #{@metadata["published_at"]}"}
+      {if @metadata["updated_at"], do: " · Updated #{@metadata["updated_at"]}"}
+    </p>
+    <%= if @new do %>
+      <p id="new-draft-notice" class="text-sm font-medium text-amber-600 dark:text-amber-400 mb-2">
+        Draft created!
+      </p>
+    <% end %>
+    <div class="flex items-center gap-2 mb-4">
+      <form phx-submit="rename_page" class="flex gap-1">
+        <input
+          type="text"
+          name="name"
+          value={@page}
+          placeholder="New name..."
+          class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+        />
+        <button
+          type="submit"
+          class="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
+        >
+          Rename
+        </button>
+      </form>
+      <button
+        type="button"
+        phx-click="delete_page"
+        phx-confirm={"Delete \"#{@page}\"?"}
+        class="px-2 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+      >
+        Delete
+      </button>
+    </div>
 
     <.form
       for={%{}}
       as={:editor}
       phx-change="update"
       phx-submit="save"
+      id="editor-form"
+      phx-hook="EditorGuard"
+      data-page={@page}
       class="flex flex-col flex-1"
     >
       <textarea
+        id="markdown-editor"
         name="markdown"
         class="flex-1 w-full p-4 font-mono text-sm border rounded-md
                        bg-gray-50 dark:bg-gray-900
@@ -68,7 +128,7 @@
       </div>
     </.form>
   </section>
-  
+
   <section class="flex-1 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
     <h2 class="text-lg font-semibold mb-4">Preview</h2>
     <article class="prose dark:prose-invert max-w-none">

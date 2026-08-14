@@ -16,6 +16,7 @@ config :manto, MantoWeb.Endpoint,
   secret_key_base: "c/6rFAyUvpLHbtVYUkm8CN/5UZa8P8quhkl21/I+d/WfZQ1z5lMgdK0hxYgyhtRm",
   watchers: [
     esbuild: {Esbuild, :install_and_run, [:manto, ~w(--sourcemap=inline --watch)]},
+    esbuild_service_worker: {Esbuild, :install_and_run, [:service_worker, ~w(--watch)]},
     tailwind: {Tailwind, :install_and_run, [:manto, ~w(--watch)]}
   ]
 

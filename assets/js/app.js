@@ -23,13 +23,14 @@ import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/manto"
+import {EditorGuard} from "./editor_guard"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, EditorGuard},
 })
 
 // Show progress bar on live navigation and form submits
@@ -78,6 +79,17 @@ if (process.env.NODE_ENV === "development") {
     }, true)
 
     window.liveReloader = reloader
+  })
+}
+
+// Register the service worker for PWA / offline support.
+// The worker is bundled to /service-worker.js (root scope) by esbuild's
+// `service_worker` config so it controls the whole app.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/service-worker.js")
+      .catch((error) => console.error("Service worker registration failed:", error))
   })
 }
 
