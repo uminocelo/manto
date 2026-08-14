@@ -16,6 +16,11 @@
           ]}
         >
           {p}
+          <%= if p in @draft_pages do %>
+            <span class="ml-1 text-xs font-medium uppercase text-amber-600 dark:text-amber-400">
+              draft
+            </span>
+          <% end %>
         </.link>
       </li>
     </ul>
@@ -35,12 +40,19 @@
       </button>
     </form>
   </nav>
-  
+
   <section class="flex-1 p-6 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
     <h2 class="text-lg font-semibold mb-4">
       Editing: {Map.get(@metadata, "title", @page)}
       <span class="text-gray-400 text-sm">({@page}.md)</span>
+      <%= if @draft do %>
+        <span id="draft-badge" class="ml-2 badge badge-warning badge-sm">Draft</span>
+      <% end %>
     </h2>
+    <p class="text-xs text-gray-400 mb-2">
+      {if @metadata["published_at"], do: "Published #{@metadata["published_at"]}"}
+      {if @metadata["updated_at"], do: " · Updated #{@metadata["updated_at"]}"}
+    </p>
 
     <.form
       for={%{}}
@@ -68,7 +80,7 @@
       </div>
     </.form>
   </section>
-  
+
   <section class="flex-1 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
     <h2 class="text-lg font-semibold mb-4">Preview</h2>
     <article class="prose dark:prose-invert max-w-none">

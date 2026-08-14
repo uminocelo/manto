@@ -4,18 +4,25 @@ defmodule MantoWeb.EditorLive do
   alias Manto.Content.Parser
 
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, pages: Content.list_pages())}
+    {:ok,
+     assign(socket,
+       pages: Content.list_pages(),
+       draft_pages: Content.list_draft_pages()
+     )}
   end
 
   def handle_params(params, _uri, socket) do
     page = params["page"] || "welcome"
     existing_body = Content.get_page(page)
     body = existing_body || "# #{page}"
-    {:noreply, load_page(socket, page, body, new: is_nil(existing_body))} # checks if the page exists already
+    # checks if the page exists already
+    {:noreply, load_page(socket, page, body, new: is_nil(existing_body))}
   end
 
   def handle_event("update", %{"markdown" => body}, socket) do
-    {:noreply, load_page(socket, socket.assigns.page, body, saved: false, new: socket.assigns.new)} # keep the new state on each update, until a save event
+    # keep the new state on each update, until a save event
+    {:noreply,
+     load_page(socket, socket.assigns.page, body, saved: false, new: socket.assigns.new)}
   end
 
   def handle_event("save", _params, socket) do
@@ -23,7 +30,13 @@ defmodule MantoWeb.EditorLive do
 
     socket =
       socket
-      |> assign(saved: true, new: false, pages: Content.list_pages()) # saves and set new to false
+      |> assign(
+        saved: true,
+        new: false,
+        # saves and set new to false
+        pages: Content.list_pages(),
+        draft_pages: Content.list_draft_pages()
+      )
       |> put_flash(:info, "\"#{socket.assigns.page}\" saved.")
 
     {:noreply, socket}
@@ -33,6 +46,7 @@ defmodule MantoWeb.EditorLive do
     case String.trim(name) |> String.replace(" ", "-") do
       "" ->
         {:noreply, socket}
+
       # checks if a page already exists before new page creation
       slug ->
         if slug in socket.assigns.pages do
@@ -49,11 +63,14 @@ defmodule MantoWeb.EditorLive do
   end
 
   defp load_page(socket, page, body, opts) do
+    metadata = Parser.metadata(body)
+
     assign(socket,
       page: page,
       body: body,
       html: Parser.render_html(body),
-      metadata: Parser.metadata(body),
+      metadata: metadata,
+      draft: Parser.draft?(metadata),
       saved: Keyword.get(opts, :saved, false),
       new: Keyword.get(opts, :new, false)
     )

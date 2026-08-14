@@ -50,4 +50,31 @@ defmodule MantoWeb.EditorLiveTest do
     # a plain string (not a live_redirect tuple) proves no navigation happened
     assert html =~ "already exists"
   end
+
+  test "shows a draft badge and dates for a draft page", %{conn: conn} do
+    page = "Draft-Show-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+
+    File.write!(path, """
+    ---
+    draft: true
+    published_at: 2026-08-13
+    ---
+
+    # #{page}
+    """)
+
+    on_exit(fn -> File.rm(path) end)
+
+    {:ok, view, html} = live(conn, "/editor/#{page}")
+
+    assert has_element?(view, "#draft-badge")
+    assert html =~ "Published 2026-08-13"
+    assert html =~ "draft"
+  end
+
+  test "does not show a draft badge for a published page", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/editor/welcome")
+    refute has_element?(view, "#draft-badge")
+  end
 end

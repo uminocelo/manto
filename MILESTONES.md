@@ -1,0 +1,154 @@
+# Manto Milestones
+
+Tracked against the current codebase. Each milestone is grounded in a concrete gap
+in the code; file/line references point at the relevant code so work can start fast.
+
+Status legend: `[x]` done, `[]` open, `[~]` in progress (uncommitted work exists).
+
+## Roadmap (from README)
+
+- [x] MVP: Live editor + preview
+- [x] Local content folder
+- [x] Page navigation & wiki-style links
+- [x] Metadata (frontmatter)
+- [x] Static site generator mode
+- [x] Theming
+- [] **Publishing** → see M1
+
+## M1 — Publishing & drafts — [x] done
+
+Content is currently all-or-nothing: every `.md` file is listed, editable, and
+rendered into the static site.
+
+- `draft: true` / `published: false` in front matter; `draft:` pages hidden from
+  `/` and from `mix manto.build` output
+- `published_at` / `updated_at` front matter surfaced in the editor and static site
+- Editor shows a clear published/draft state per page
+
+Status notes:
+
+- `mix manto.build` now skips drafts (logs the skip count) and renders
+  `published_at` / `updated_at` lines when present
+- The editor sidebar and editing header show a "Draft"/"draft" badge, and the
+  header shows `Published`/`Updated` dates
+- `/` is a static landing page that never lists pages, so draft filtering is N/A
+  there; the public surface is the static build
+- Front matter values are now typed (booleans/integers) in the Parser, the subset
+  of M3 needed here; full list/date typing is still open in M3
+
+Code touchpoints:
+
+- `lib/manto/content/content.ex:10` — `list_pages/0` returns every `*.md`; needs a
+  `list_pages(opts)` that filters on metadata
+- `lib/mix/tasks/manto.build.ex:41` — renders all pages unconditionally
+- `lib/manto/content/parser.ex:57` — front matter parsing (see M3 for the parser
+  upgrade this depends on)
+- `lib/manto_web/live/editor_live.html.heex:4` — page list in the sidebar
+
+## M2 — Page delete & rename
+
+`Manto.Content` can list, read, and write but never delete or rename; the editor
+has no such actions. Pages can only be created and saved.
+
+- `Content.delete_page/1` and `Content.rename_page/2` (writes + `.md` path move)
+- Editor toolbar actions with confirm; error flash on failure (missing file, etc.)
+- Tests: delete removes the file, rename updates the sidebar, cleanup via `on_exit`
+
+Code touchpoints:
+
+- `lib/manto/content/content.ex` — only `list_pages/1`, `get_page/1`, `save_page/2`
+- `lib/manto_web/live/editor_live.ex:21` — `"save"` event is the only mutating path
+- `lib/manto_web/live/editor_live.html.heex:23` — new-page form is the only page action
+
+## M3 — Real front matter parsing
+
+Front matter is parsed with `String.split(line, ":", parts: 2)` — no YAML lists,
+booleans, or dates. `tags: a, b` becomes the plain string `"a, b"`. This blocks
+M1 (drafts) and tags taxonomies.
+
+- Parse scalars, lists, and dates; type-aware values (string / list / boolean / iso-date)
+- Keep string keys; `metadata/1` stays the public API (used by `editor_live.ex:56`
+  and `manto.build.ex:45`)
+- Test matrix covering list/boolean/date values and malformed input
+
+Code touchpoints:
+
+- `lib/manto/content/parser.ex:57-78` — `parse_front_matter/1` + `parse_front_matter_line/1`
+- `test/manto/content/parser_test.exs:5` — existing metadata tests to extend
+
+## M4 — Editor flash bug (fix) + unsaved-changes guard
+
+Two tests fail on `main` because the "created"/"Draft created!" flash set with
+`put_flash` before `push_navigate` never renders (`test/manto_web/live/editor_live_test.exs:17,27`).
+
+- Fix flash propagation so the toast appears after redirect (and flip the 2 tests green)
+- Add an unsaved-changes guard: navigating away with unsaved edits warns first;
+  `localStorage` autosave restores a draft on next visit
+
+Code touchpoints:
+
+- `lib/manto_web/live/editor_live.ex:32-49` — `new_page` does `put_flash` + `push_navigate`
+- `lib/manto_web/live/editor_live.ex:17-19` — `"update"` only reassigns in memory
+- `test/manto_web/live/editor_live_test.exs:5,21` — the failing tests
+
+## M5 — Rich MDEx rendering
+
+The parser enables only `front_matter_delimiter` + `table` (`parser.ex:8`), while
+MDEx ships emoji shortcodes and built-in syntax highlighting — both already proven
+in the (unused) `hello/2` action (`page_controller.ex:20-21`).
+
+- Add `shortcodes` and syntax highlighting to `@mdex_opts` so editor preview and
+  static builds render them
+- Keep `render_html/2` returning a plain string; prefer opt-in options over always-on
+
+Code touchpoints:
+
+- `lib/manto/content/parser.ex:8` — `@mdex_opts`
+- `lib/manto_web/controllers/page_controller.ex:19-23` — working shortcode example
+
+## M6 — Wiki-link integrity
+
+`rewrite_wiki_links/2` rewrites `[[X]]` to `/editor/X` without checking the target
+exists, so broken links render silently.
+
+- After rewriting, cross-check targets against `Content.list_pages/0`
+- Surface broken links in the editor sidebar and in static build output (a warnings list)
+
+Code touchpoints:
+
+- `lib/manto/content/parser.ex:47-55` — `rewrite_wiki_links/2`
+- `lib/mix/tasks/manto.build.ex:41-56` — where a per-build warnings report would print
+
+## M7 — Static site generator v2
+
+`manto.build` emits one hardcoded `<html>` shell per page with a plain nav
+(`manto.build.ex:58-80`). No site config, index, or feed.
+
+- `manto.site` config (title, base URL) read from `config/` or a `manto.json`
+- Generate `index.html`, `rss.xml`, `sitemap.xml`; copy static assets (images)
+- Optional per-page `tags` taxonomy pages
+
+Code touchpoints:
+
+- `lib/mix/tasks/manto.build.ex:58-80` — `page_template/1`
+- `priv/themes/*.css` — theme copy already handled at `manto.build.ex:38-39`
+
+## M8 — PWA / offline (in progress)
+
+Uncommitted work exists: `assets/js/service-worker.js`, `assets/manifest.json`, the
+manifest link + SW registration script in `root.html.heex`, and `static_paths`
+updated in `lib/manto_web.ex:20`.
+
+- Bundle `service-worker.js` through esbuild/`app.js` instead of the inline
+  registration script (inline scripts violate the repo convention in AGENTS.md)
+- Fix the path mismatch: registered at `/js/service-worker.js`, file lives under `assets/js/`
+- Commit `manifest.json` + `service-worker.js` once wired and tested
+
+## Housekeeping
+
+- **Remove dead code**: `PageController.hello/2` has no route (`router.ex` lists only
+  `/`, `/editor`, `/editor/:page`)
+- **Error handling**: `Content.save_page/2` uses `File.write!` with no rescue path;
+  surface write failures as error flashes instead of crashing
+- **Re-run gate**: every milestone must pass `mix precommit` (see AGENTS.md) — note
+  M4 is required before the suite is fully green

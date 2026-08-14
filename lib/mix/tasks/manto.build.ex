@@ -19,9 +19,11 @@ defmodule Mix.Tasks.Manto.Build do
 
   @impl true
   def run(args) do
-    Mix.Task.run("app.start") # start app before running the task, depends on Manto.Content module
+    # start app before running the task, depends on Manto.Content module
+    Mix.Task.run("app.start")
 
-    {opts, _} = # parses arguments from command
+    # parses arguments from command
+    {opts, _} =
       OptionParser.parse!(args,
         strict: [output: :string, theme: :string],
         aliases: [o: :output, t: :theme]
@@ -31,16 +33,22 @@ defmodule Mix.Tasks.Manto.Build do
     theme = Keyword.get(opts, :theme, "default")
     theme_path = Path.join([:code.priv_dir(:manto), "themes", "#{theme}.css"])
 
-    unless File.exists?(theme_path) do # validates if theme exists
+    # validates if theme exists
+    unless File.exists?(theme_path) do
       Mix.raise("Unknown theme #{inspect(theme)} (looked for #{theme_path})")
     end
 
-    File.mkdir_p!(output_dir) # output creation and theme copy into it
+    # output creation and theme copy into it
+    File.mkdir_p!(output_dir)
     File.cp!(theme_path, Path.join(output_dir, "style.css"))
 
-    pages = Content.list_pages() # get all pages
+    # get all pages
+    pages = Content.list_pages(include_drafts: false)
+    # count skipped drafts
+    draft_count = Content.list_draft_pages() |> length()
 
-    for name <- pages do # get content and creates html file
+    # get content and creates html file
+    for name <- pages do
       body = Content.get_page(name)
       metadata = Parser.metadata(body)
       html = Parser.render_html(body, link_prefix: "", link_suffix: ".html")
@@ -48,18 +56,38 @@ defmodule Mix.Tasks.Manto.Build do
 
       File.write!(
         Path.join(output_dir, "#{name}.html"),
-        page_template(title: title, body: html, pages: pages, current: name)
+        page_template(
+          title: title,
+          body: html,
+          pages: pages,
+          current: name,
+          published_at: Map.get(metadata, "published_at"),
+          updated_at: Map.get(metadata, "updated_at")
+        )
       )
     end
 
-    Mix.shell().info("Built #{length(pages)} page(s) into #{output_dir}/") # prints success message
+    skipped = if draft_count == 0, do: "", else: " (skipped #{draft_count} draft(s))"
+
+    # prints success message
+    Mix.shell().info("Built #{length(pages)} page(s) into #{output_dir}/#{skipped}")
   end
 
-  defp page_template(assigns) do # template for each page
+  # template for each page
+  defp page_template(assigns) do
     nav =
       Enum.map_join(assigns[:pages], "\n", fn name ->
         ~s(<a href="#{name}.html">#{name}</a>)
       end)
+
+    meta =
+      [
+        assigns[:published_at] &&
+          ~s(<p class="published">Published on #{assigns[:published_at]}</p>),
+        assigns[:updated_at] && ~s(<p class="updated">Updated on #{assigns[:updated_at]}</p>)
+      ]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join("\n")
 
     """
     <!DOCTYPE html>
@@ -72,6 +100,7 @@ defmodule Mix.Tasks.Manto.Build do
     <body>
       <nav>#{nav}</nav>
       <article>
+    #{meta}
     #{assigns[:body]}
       </article>
     </body>

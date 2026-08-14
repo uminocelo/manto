@@ -7,8 +7,21 @@ defmodule Manto.Content.ParserTest do
     assert Parser.metadata(md) == %{"title" => "Hello", "tags" => "a, b"}
   end
 
+  test "metadata/1 types booleans and integers" do
+    md = "---\ndraft: true\npublished: false\npriority: 3\n---"
+    assert Parser.metadata(md) == %{"draft" => true, "published" => false, "priority" => 3}
+  end
+
   test "metadata/1 returns an empty map without front matter" do
     assert Parser.metadata("# Just a heading") == %{}
+  end
+
+  test "draft?/1 flags draft and unpublished metadata" do
+    assert Parser.draft?(%{"draft" => true})
+    assert Parser.draft?(%{"published" => false})
+    refute Parser.draft?(%{"draft" => false})
+    refute Parser.draft?(%{"published" => true})
+    refute Parser.draft?(%{})
   end
 
   test "render_html/1 strips front matter and rewrites wiki links" do

@@ -31,7 +31,9 @@ defmodule Manto.Content.Parser do
   @doc """
   Extract front matter as a string-keyed map, e.g. `---\\ntitle: Hi\\n---` -> %{"title" => "Hi"}.
 
-  Returns an empty map when there's no front matter.
+  Values are typed: `true`/`false` become booleans and bare integers become
+  integers; everything else stays a string. Returns an empty map when there's
+  no front matter.
   """
   @spec metadata(String.t()) :: map()
   def metadata(markdown) when is_binary(markdown) do
@@ -42,6 +44,15 @@ defmodule Manto.Content.Parser do
     else
       _ -> %{}
     end
+  end
+
+  @doc """
+  Whether a metadata map describes a draft: either `draft: true` or
+  `published: false`. Pages without either key are treated as published.
+  """
+  @spec draft?(map()) :: boolean()
+  def draft?(metadata) when is_map(metadata) do
+    Map.get(metadata, "draft", false) == true or Map.get(metadata, "published", true) == false
   end
 
   defp rewrite_wiki_links(markdown, opts) do
@@ -71,9 +82,18 @@ defmodule Manto.Content.Parser do
     with [key, value] <- String.split(line, ":", parts: 2),
          key = String.trim(key),
          true <- key != "" do
-      {key, String.trim(value)}
+      {key, parse_value(String.trim(value))}
     else
       _ -> :skip
+    end
+  end
+
+  defp parse_value(value) do
+    cond do
+      value == "true" -> true
+      value == "false" -> false
+      value =~ ~r/^-?\d+$/ -> String.to_integer(value)
+      true -> value
     end
   end
 end
