@@ -99,7 +99,7 @@ Code touchpoints:
   `add_front_matter_line/2` (`:73`), `parse_front_matter_line/1` (`:86`)
 - `test/manto/content/parser_test.exs:5` — existing metadata tests to extend
 
-## M4 — Editor flash bug (fix) + unsaved-changes guard
+## M4 — Editor flash bug (fix) + unsaved-changes guard — [x] done
 
 Two tests fail on `main` because the "created"/"Draft created!" flash set with
 `put_flash` before `push_navigate` never renders (`test/manto_web/live/editor_live_test.exs:17,27`).
@@ -107,6 +107,27 @@ Two tests fail on `main` because the "created"/"Draft created!" flash set with
 - Fix flash propagation so the toast appears after redirect (and flip the 2 tests green)
 - Add an unsaved-changes guard: navigating away with unsaved edits warns first;
   `localStorage` autosave restores a draft on next visit
+
+Status notes:
+
+- The "flash bug" was a test artifact, not an app bug: `push_navigate` already
+  carries `put_flash` across a live redirect (verified with LiveViewTest's
+  `follow_redirect/2`). The failing "created" test opened a brand-new connection
+  (`live(conn, to)`) instead of following the redirect, so the flash was never
+  there. It now matches the redirect tuple and calls `follow_redirect/2`.
+- The second failure was genuine: the `@new` flag existed but the template never
+  surfaced it. Added a `#new-draft-notice` ("Draft created!") shown when
+  `@new`, cleared on save — matches the test and the "unsaved new page" UX.
+- Added `EditorGuard` hook (`assets/js/editor_guard.js`), wired via `app.js`:
+  - `input` listener marks dirty + debounced autosave to
+    `localStorage["manto:draft:<page>"]`
+  - `beforeunload` + capture-phase click/submit interceptors on
+    `a[data-phx-link]` and non-save `phx-submit` forms confirm before leaving
+  - on mount, a stored draft is pushed to the LiveView via `restore_draft`
+    (optimistically filled into the textarea)
+- LiveView side: `handle_event("restore_draft", ...)` reloads the page body, and
+  `save` pushes `draft_saved` so the hook clears storage and marks clean
+- Suite is fully green: 35 tests, 0 failures (was 2 known M4 failures)
 
 Code touchpoints:
 

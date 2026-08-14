@@ -5,14 +5,16 @@ defmodule MantoWeb.EditorLiveTest do
   test "new page button navigates to a fresh page", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/editor")
 
-    {:error, {:live_redirect, %{to: to}}} =
+    result =
       view
       |> form("form[phx-submit=new_page]", %{name: "My Draft"})
       |> render_submit()
 
+    {:error, {:live_redirect, %{to: to}}} = result
     assert to == "/editor/My-Draft"
 
-    {:ok, view2, html} = live(conn, to)
+    # follow the redirect so the "created" flash survives, like a real browser
+    {:ok, view2, html} = follow_redirect(result, conn)
     assert html =~ "My-Draft"
     assert html =~ "created"
     assert render(view2) =~ "# My-Draft"
@@ -37,6 +39,19 @@ defmodule MantoWeb.EditorLiveTest do
   test "does not flag an existing page as new", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/editor/welcome")
     refute html =~ "Draft created!"
+  end
+
+  test "restores an autosaved draft via the restore_draft event", %{conn: conn} do
+    page = "Restore-Ed-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    on_exit(fn -> File.rm(path) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    html = render_hook(view, "restore_draft", %{"body" => "# Restored Draft"})
+
+    assert html =~ "# Restored Draft"
+    refute html =~ "# #{page}"
   end
 
   test "warns via flash instead of navigating when the page name already exists", %{conn: conn} do

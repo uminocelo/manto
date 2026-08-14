@@ -38,8 +38,14 @@ defmodule MantoWeb.EditorLive do
         draft_pages: Content.list_draft_pages()
       )
       |> put_flash(:info, "\"#{socket.assigns.page}\" saved.")
+      |> push_event("draft_saved", %{})
 
     {:noreply, socket}
+  end
+
+  def handle_event("restore_draft", %{"body" => body}, socket) do
+    # autosaved draft restored from localStorage by the EditorGuard hook
+    {:noreply, load_page(socket, socket.assigns.page, body, new: socket.assigns.new)}
   end
 
   def handle_event("new_page", %{"name" => name}, socket) do

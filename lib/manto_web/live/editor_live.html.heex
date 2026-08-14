@@ -53,6 +53,11 @@
       {if @metadata["published_at"], do: "Published #{@metadata["published_at"]}"}
       {if @metadata["updated_at"], do: " · Updated #{@metadata["updated_at"]}"}
     </p>
+    <%= if @new do %>
+      <p id="new-draft-notice" class="text-sm font-medium text-amber-600 dark:text-amber-400 mb-2">
+        Draft created!
+      </p>
+    <% end %>
     <div class="flex items-center gap-2 mb-4">
       <form phx-submit="rename_page" class="flex gap-1">
         <input
@@ -84,9 +89,13 @@
       as={:editor}
       phx-change="update"
       phx-submit="save"
+      id="editor-form"
+      phx-hook="EditorGuard"
+      data-page={@page}
       class="flex flex-col flex-1"
     >
       <textarea
+        id="markdown-editor"
         name="markdown"
         class="flex-1 w-full p-4 font-mono text-sm border rounded-md
                        bg-gray-50 dark:bg-gray-900
