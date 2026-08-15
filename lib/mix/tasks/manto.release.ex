@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Manto.Release do
   # full environment so `mix` still finds its executables on PATH
   defp prod_env, do: System.get_env() |> Map.put("MIX_ENV", "prod")
 
-  defp sh(cmd, args, opts \\ []) do
+  defp sh(cmd, args, opts) do
     env = Keyword.get(opts, :env, System.get_env())
 
     {output, status} =
