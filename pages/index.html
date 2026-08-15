@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manto — a local-first Markdown CMS</title>
+  <meta name="description" content="Manto is a local-first Markdown CMS. Your content lives as plain .md files — no database. Edit in a split-pane editor, export a static site, or ship a self-contained release.">
+  <style>
+    :root {
+      --ink: #1f2937;
+      --accent: #4f46e5;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --code-bg: #f3f4f6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      line-height: 1.6;
+    }
+    .wrap { max-width: 42rem; margin: 0 auto; padding: 0 1.25rem; }
+    header { padding: 2rem 0 0; }
+    nav { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
+    nav .logo { font-weight: 700; font-size: 1.1rem; color: var(--ink); text-decoration: none; }
+    nav a { color: var(--accent); text-decoration: none; margin-left: 1rem; }
+    .hero { padding: 3.5rem 0 2.5rem; }
+    .hero h1 { font-size: 2.4rem; line-height: 1.15; margin: 0 0 0.75rem; }
+    .hero p { font-size: 1.15rem; color: var(--muted); margin: 0 0 1.75rem; }
+    .cta { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .btn {
+      display: inline-block; padding: 0.6rem 1.1rem; border-radius: 0.5rem;
+      text-decoration: none; font-weight: 600; font-size: 0.95rem;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-ghost { border: 1px solid var(--border); color: var(--ink); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    section { padding: 2rem 0; border-top: 1px solid var(--border); }
+    h2 { font-size: 1.4rem; margin: 0 0 1.25rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1.25rem; }
+    .card { border: 1px solid var(--border); border-radius: 0.625rem; padding: 1.25rem; }
+    .card h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+    .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+    pre {
+      background: var(--code-bg); padding: 1rem 1.25rem; overflow-x: auto;
+      border-radius: 0.625rem; margin: 0;
+    }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9rem; }
+    .muted { color: var(--muted); }
+    footer { padding: 2rem 0 3rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.875rem; }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <nav>
+        <a class="logo" href="./">Manto</a>
+        <span>
+          <a href="https://github.com/uminocelo/manto">GitHub</a>
+          <a href="https://github.com/uminocelo/manto/releases">Releases</a>
+        </span>
+      </nav>
+    </header>
+
+    <div class="hero">
+      <h1>A local-first Markdown&nbsp;CMS</h1>
+      <p>Your content lives as plain <code>.md</code> files in a folder. No database, no lock-in — just Markdown you already own. Edit it in a split-pane editor and publish how you like.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/uminocelo/manto/releases">Download</a>
+        <a class="btn btn-ghost" href="https://github.com/uminocelo/manto">View source</a>
+      </div>
+    </div>
+
+    <section>
+      <h2>Why Manto?</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Content is just files</h3>
+          <p>Every page is a Markdown file with front matter. Back it up, diff it, search it — no database to export or migrate.</p>
+        </div>
+        <div class="card">
+          <h3>Split-pane editor</h3>
+          <p>Write in Markdown, preview rendered HTML side by side. Wiki links, tags, and GFM tables all work out of the box.</p>
+        </div>
+        <div class="card">
+          <h3>Export a static site</h3>
+          <p><code>mix manto.build</code> renders your vault to plain HTML — folder structure, breadcrumbs, RSS, and sitemap included.</p>
+        </div>
+        <div class="card">
+          <h3>Ship a self-contained release</h3>
+          <p><code>mix manto.release</code> builds a tarball with the BEAM runtime bundled. End users run <code>./bin/server</code> — no Elixir needed.</p>
+        </div>
+        <div class="card">
+          <h3>Local-first, no auth</h3>
+          <p>Runs on your own machine by default. Settings live in a small <code>manto.json</code>, not a central service.</p>
+        </div>
+        <div class="card">
+          <h3>Phoenix LiveView</h3>
+          <p>Built with Elixir and Phoenix LiveView — instant previews without a build step or a JS framework.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Quickstart</h2>
+      <pre><code># From source
+mix setup
+mix phx.server          # editor at http://localhost:4000/editor
+
+# Or ship a release
+mix manto.release
+tar -xzf manto-v*.tar.gz
+cd manto-v*
+./bin/server</code></pre>
+    </section>
+
+    <footer>
+      <p>Manto is open source under the MIT License. <a href="https://github.com/uminocelo/manto">Fork it on GitHub</a>.</p>
+    </footer>
+  </div>
+</body>
+</html>
