@@ -1,5 +1,5 @@
 defmodule MantoWeb.EditorLiveTest do
-  use MantoWeb.ConnCase
+  use MantoWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
   test "new page button navigates to a fresh page", %{conn: conn} do

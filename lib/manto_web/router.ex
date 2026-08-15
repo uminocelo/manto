@@ -17,7 +17,7 @@ defmodule MantoWeb.Router do
   scope "/", MantoWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", SettingsLive
     live "/editor", EditorLive
     # new route, :page = path parameter
     live "/editor/:page", EditorLive

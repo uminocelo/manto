@@ -13,10 +13,11 @@ Manto ("cloak" in Portuguese) is a local-first Markdown CMS built with Phoenix L
 
 ## Architecture
 
-- `lib/manto/` — core app. `Manto.Content` reads/writes pages from `priv/content/*.md`; `Manto.Content.Parser` wraps MDEx (front matter, GFM tables, and `[[wiki links]]` rewritten to `/editor/Slug` links)
-- `lib/manto_web/` — web layer. `MantoWeb.EditorLive` (`/editor` and `/editor/:page`) is the split-pane Markdown editor; `MantoWeb.PageController` serves `/`
+- `lib/manto/` — core app. `Manto.Content` reads/writes pages from the vault directory (default `priv/content`, overridable via `vault_path` in `manto.json`); `Manto.Content.Parser` wraps MDEx (front matter, GFM tables, and `[[wiki links]]` rewritten to `/editor/Slug` links)
+- `lib/manto_web/` — web layer. `MantoWeb.SettingsLive` (`/`) is the settings page where the vault path and site settings (`title`, `description`, `base_url`) are written to `manto.json`; `MantoWeb.EditorLive` (`/editor` and `/editor/:page`) is the split-pane Markdown editor
+- Settings live in `manto.json` (project root, via `Manto.Site`): file wins over `config/` app-env entries, which win over defaults. `vault_path` may be absolute, start with `~`, or be relative to the project root; `Manto.Content.content_dir/0` expands it
 - No auth, no DB, and no `live_session` in the router — ignore generic guidance about `current_scope`/authenticated routes
-- The editor template renders its own full-page layout and begins with `<Layouts.flash_group flash={@flash} />` rather than wrapping in `<Layouts.app>`
+- The editor and settings templates render their own full-page layouts and begin with `<Layouts.flash_group flash={@flash} />` rather than wrapping in `<Layouts.app>`
 - App module is `Manto`, web module is `MantoWeb`
 
 ## Gotchas

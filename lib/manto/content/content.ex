@@ -1,11 +1,21 @@
 defmodule Manto.Content do
   @moduledoc """
-  Handles reading and writing Markdown files from priv/content.
+  Handles reading and writing Markdown files in the configured vault.
   """
 
   alias Manto.Content.Parser
+  alias Manto.Site
 
-  @content_dir Path.join(:code.priv_dir(:manto), "content")
+  @doc """
+  Absolute path of the vault directory.
+
+  Taken from the `vault_path` site config, which may be absolute, start with
+  `~`, or be relative to the project root. Defaults to `priv/content`.
+  """
+  @spec content_dir() :: String.t()
+  def content_dir do
+    Path.expand(Site.config()["vault_path"])
+  end
 
   @doc """
   List all available pages (filenames without .md).
@@ -17,7 +27,7 @@ defmodule Manto.Content do
   def list_pages(opts \\ []) do
     include_drafts? = Keyword.get(opts, :include_drafts, true)
 
-    @content_dir
+    content_dir()
     |> Path.join("*.md")
     |> Path.wildcard()
     |> Enum.map(&Path.basename(&1, ".md"))
@@ -40,7 +50,7 @@ defmodule Manto.Content do
 
   @doc "Get the raw Markdown body of a page"
   def get_page(name) do
-    path = Path.join(@content_dir, "#{name}.md")
+    path = Path.join(content_dir(), "#{name}.md")
 
     case File.read(path) do
       {:ok, body} -> body
@@ -69,7 +79,7 @@ defmodule Manto.Content do
 
   @doc "Save Markdown body to a page (creates or overwrites)"
   def save_page(name, body) do
-    path = Path.join(@content_dir, "#{name}.md")
+    path = Path.join(content_dir(), "#{name}.md")
     File.write!(path, body)
   end
 
@@ -80,7 +90,7 @@ defmodule Manto.Content do
   or `{:error, reason}` when the file system refuses.
   """
   def delete_page(name) do
-    path = Path.join(@content_dir, "#{name}.md")
+    path = Path.join(content_dir(), "#{name}.md")
 
     case File.rm(path) do
       :ok -> :ok
@@ -97,8 +107,8 @@ defmodule Manto.Content do
   `{:error, reason}` when the file system refuses.
   """
   def rename_page(from, to) do
-    source = Path.join(@content_dir, "#{from}.md")
-    target = Path.join(@content_dir, "#{to}.md")
+    source = Path.join(content_dir(), "#{from}.md")
+    target = Path.join(content_dir(), "#{to}.md")
 
     cond do
       not File.exists?(source) ->

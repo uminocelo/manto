@@ -11,6 +11,21 @@ defmodule Manto.ContentTest do
     name
   end
 
+  test "content_dir/0 resolves the configured vault path" do
+    previous = Application.get_env(:manto, :site)
+    Application.put_env(:manto, :site, %{vault_path: "custom-vault"})
+
+    on_exit(fn ->
+      if previous do
+        Application.put_env(:manto, :site, previous)
+      else
+        Application.delete_env(:manto, :site)
+      end
+    end)
+
+    assert Content.content_dir() == Path.expand("custom-vault")
+  end
+
   test "list_pages/1 excludes drafts when include_drafts is false" do
     public = write_page(unique("Public"), "# Public")
     draft = write_page(unique("Draft"), "---\ndraft: true\n---\n# Draft")

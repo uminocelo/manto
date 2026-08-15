@@ -23,7 +23,6 @@ defmodule Mix.Tasks.Manto.Build do
     * `--theme`, `-t` - theme name from `priv/themes/*.css` (default: `default`)
   """
 
-  @content_dir Path.join(:code.priv_dir(:manto), "content")
   @image_extensions ~w(png jpg jpeg gif svg webp)
 
   @impl true
@@ -278,7 +277,7 @@ defmodule Mix.Tasks.Manto.Build do
 
   defp copy_images(output_dir) do
     for ext <- @image_extensions,
-        image <- Path.wildcard(Path.join(@content_dir, "**/*.#{ext}")) do
+        image <- Path.wildcard(Path.join(Content.content_dir(), "**/*.#{ext}")) do
       File.cp!(image, Path.join(output_dir, Path.basename(image)))
     end
   end
