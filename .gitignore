@@ -9,6 +9,15 @@ erl_crash.dump
 manto-*.tar
 /priv/static/assets/
 /priv/static/cache_manifest.json
+# phx.digest build artifacts (hashed copies + gzip) from `mix assets.deploy`
+/priv/static/*.gz
+/priv/static/**/*.gz
+/priv/static/*-[0-9a-f]*.ico
+/priv/static/*-[0-9a-f]*.json
+/priv/static/*-[0-9a-f]*.js
+/priv/static/images/icon-*-[0-9a-f]*.png
+# esbuild output (source is assets/js/service-worker.js, built by mix setup/assets.deploy)
+/priv/static/service-worker.js
 /priv/static_site/
 npm-debug.log
 node_modules/
@@ -23,3 +32,4 @@ assets/node_modules/
 # Runtime
 /.manto/
 /priv/content/*
+/dist/

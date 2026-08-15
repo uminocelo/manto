@@ -11,6 +11,21 @@ defmodule Manto.ContentTest do
     name
   end
 
+  test "content_dir/0 resolves the configured vault path" do
+    previous = Application.get_env(:manto, :site)
+    Application.put_env(:manto, :site, %{vault_path: "custom-vault"})
+
+    on_exit(fn ->
+      if previous do
+        Application.put_env(:manto, :site, previous)
+      else
+        Application.delete_env(:manto, :site)
+      end
+    end)
+
+    assert Content.content_dir() == Path.expand("custom-vault")
+  end
+
   test "list_pages/1 excludes drafts when include_drafts is false" do
     public = write_page(unique("Public"), "# Public")
     draft = write_page(unique("Draft"), "---\ndraft: true\n---\n# Draft")
@@ -64,6 +79,52 @@ defmodule Manto.ContentTest do
     from = write_page(unique("RenameFrom"), "# From")
     existing = write_page(unique("Existing"), "# Existing")
     assert {:error, :already_exists} = Content.rename_page(from, existing)
+  end
+
+  test "list_pages/1 returns pages in subfolders with their folder path" do
+    folder = "nested-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", folder, "guide.md"])
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, "# Guide")
+    on_exit(fn -> File.rm_rf!(Path.dirname(path)) end)
+
+    assert "#{folder}/guide" in Content.list_pages()
+  end
+
+  test "save_page/2 creates missing folders" do
+    folder = "created-#{System.unique_integer([:positive])}"
+    page = "#{folder}/page"
+    on_exit(fn -> File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    Content.save_page(page, "# Created")
+
+    assert Content.get_page(page) == "# Created"
+    assert page in Content.list_pages()
+  end
+
+  test "rename_page/2 moves a page between folders" do
+    from = write_page(unique("MoveFrom"), "# Move")
+    folder = "moved-into-#{System.unique_integer([:positive])}"
+    to = "#{folder}/moved"
+    on_exit(fn -> File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    assert :ok = Content.rename_page(from, to)
+    refute from in Content.list_pages()
+    assert to in Content.list_pages()
+    assert Content.get_page(to) == "# Move"
+  end
+
+  test "valid_page_name?/1 accepts nested slugs and rejects traversal" do
+    assert Content.valid_page_name?("welcome")
+    assert Content.valid_page_name?("docs/guides/setup")
+
+    refute Content.valid_page_name?("")
+    refute Content.valid_page_name?("../escape")
+    refute Content.valid_page_name?("a/../../escape")
+    refute Content.valid_page_name?("/absolute")
+    refute Content.valid_page_name?("a//b")
+    refute Content.valid_page_name?("a/./b")
+    refute Content.valid_page_name?("a/")
   end
 
   test "broken_wiki_links/3 flags only missing targets" do

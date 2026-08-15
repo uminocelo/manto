@@ -1,14 +1,26 @@
 defmodule Manto.Content do
   @moduledoc """
-  Handles reading and writing Markdown files from priv/content.
+  Handles reading and writing Markdown files in the configured vault.
   """
 
   alias Manto.Content.Parser
-
-  @content_dir Path.join(:code.priv_dir(:manto), "content")
+  alias Manto.Site
 
   @doc """
-  List all available pages (filenames without .md).
+  Absolute path of the vault directory.
+
+  Taken from the `vault_path` site config, which may be absolute, start with
+  `~`, or be relative to the project root. Defaults to `priv/content`.
+  """
+  @spec content_dir() :: String.t()
+  def content_dir do
+    Path.expand(Site.config()["vault_path"])
+  end
+
+  @doc """
+  List all available pages (paths relative to the vault, without `.md`).
+
+  Pages in subfolders keep their folder, e.g. `"docs/guides/setup"`.
 
   Options:
 
@@ -17,10 +29,13 @@ defmodule Manto.Content do
   def list_pages(opts \\ []) do
     include_drafts? = Keyword.get(opts, :include_drafts, true)
 
-    @content_dir
-    |> Path.join("*.md")
+    content_dir()
+    |> Path.join("**/*.md")
     |> Path.wildcard()
-    |> Enum.map(&Path.basename(&1, ".md"))
+    |> Enum.map(fn path ->
+      path |> Path.relative_to(content_dir()) |> Path.rootname()
+    end)
+    |> Enum.reject(&(&1 == ""))
     |> Enum.reject(fn name -> not include_drafts? and draft?(name) end)
   end
 
@@ -40,7 +55,7 @@ defmodule Manto.Content do
 
   @doc "Get the raw Markdown body of a page"
   def get_page(name) do
-    path = Path.join(@content_dir, "#{name}.md")
+    path = Path.join(content_dir(), "#{name}.md")
 
     case File.read(path) do
       {:ok, body} -> body
@@ -69,7 +84,8 @@ defmodule Manto.Content do
 
   @doc "Save Markdown body to a page (creates or overwrites)"
   def save_page(name, body) do
-    path = Path.join(@content_dir, "#{name}.md")
+    path = Path.join(content_dir(), "#{name}.md")
+    File.mkdir_p!(Path.dirname(path))
     File.write!(path, body)
   end
 
@@ -80,7 +96,7 @@ defmodule Manto.Content do
   or `{:error, reason}` when the file system refuses.
   """
   def delete_page(name) do
-    path = Path.join(@content_dir, "#{name}.md")
+    path = Path.join(content_dir(), "#{name}.md")
 
     case File.rm(path) do
       :ok -> :ok
@@ -97,8 +113,8 @@ defmodule Manto.Content do
   `{:error, reason}` when the file system refuses.
   """
   def rename_page(from, to) do
-    source = Path.join(@content_dir, "#{from}.md")
-    target = Path.join(@content_dir, "#{to}.md")
+    source = Path.join(content_dir(), "#{from}.md")
+    target = Path.join(content_dir(), "#{to}.md")
 
     cond do
       not File.exists?(source) ->
@@ -108,10 +124,30 @@ defmodule Manto.Content do
         {:error, :already_exists}
 
       true ->
+        File.mkdir_p!(Path.dirname(target))
+
         case File.rename(source, target) do
           :ok -> :ok
           {:error, reason} -> {:error, reason}
         end
     end
+  end
+
+  @doc """
+  Whether `name` is a safe page slug.
+
+  Rejects empty names, absolute paths, and segments that are `""`, `"."`, or
+  `".."`, so nested names like `"docs/guides/setup"` are allowed but nothing
+  can escape the vault.
+  """
+  @spec valid_page_name?(String.t()) :: boolean()
+  def valid_page_name?(name) do
+    name = String.trim(name)
+
+    name != "" and
+      not String.starts_with?(name, "/") and
+      name
+      |> String.split("/")
+      |> Enum.all?(fn segment -> segment not in ["", ".", ".."] end)
   end
 end

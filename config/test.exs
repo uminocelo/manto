@@ -7,6 +7,11 @@ config :manto, MantoWeb.Endpoint,
   secret_key_base: "wV5Gft6vSvgT+sr38Hxe6aDn7RhbTBp4GdKZpBNk5f1atBgA8I/015BJ3YBXIhAi",
   server: false
 
+# Isolate settings writes from the project's manto.json
+config :manto,
+  config_path:
+    Path.join(System.tmp_dir!(), "manto-test-#{System.unique_integer([:positive])}.json")
+
 # In test we don't send emails
 config :manto, Manto.Mailer, adapter: Swoosh.Adapters.Test
 

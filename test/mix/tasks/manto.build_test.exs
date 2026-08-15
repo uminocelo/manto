@@ -213,4 +213,166 @@ defmodule Mix.Tasks.Manto.BuildTest do
 
     File.rm_rf!(output_dir)
   end
+
+  test "builds nested pages into their folders with a breadcrumb trail" do
+    folder = "build-docs-#{System.unique_integer([:positive])}"
+    page = "#{folder}/Nested-Page"
+    Manto.Content.save_page(page, "# Nested")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    output_dir =
+      Path.join(System.tmp_dir!(), "manto_build_nested_#{System.unique_integer([:positive])}")
+
+    Mix.Task.rerun("manto.build", ["--output", output_dir])
+
+    nested = File.read!(Path.join([output_dir, folder, "Nested-Page.html"]))
+
+    assert nested =~ ~s(<link rel="stylesheet" href="../style.css" />)
+    assert nested =~ ~s(<a href="../index.html">Home</a>)
+    assert nested =~ ~s(<a href="../#{folder}/index.html">#{folder}</a>)
+    assert nested =~ "Nested-Page"
+
+    File.rm_rf!(output_dir)
+  end
+
+  test "generates a folder index listing its pages and subfolders" do
+    folder = "build-index-#{System.unique_integer([:positive])}"
+    page = "#{folder}/Top-Level"
+    sub = "#{folder}/guides/Setup"
+    Manto.Content.save_page(page, "# Top")
+    Manto.Content.save_page(sub, "# Setup")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    output_dir =
+      Path.join(System.tmp_dir!(), "manto_build_folders_#{System.unique_integer([:positive])}")
+
+    Mix.Task.rerun("manto.build", ["--output", output_dir])
+
+    index = File.read!(Path.join([output_dir, folder, "index.html"]))
+    assert index =~ ~s(<link rel="stylesheet" href="../style.css" />)
+    assert index =~ ~s(<a href="../#{page}.html">Top-Level</a>)
+    assert index =~ ~s(<a href="../#{folder}/guides/index.html">guides/</a>)
+
+    sub_index = File.read!(Path.join([output_dir, folder, "guides", "index.html"]))
+    assert sub_index =~ ~s(<a href="../../index.html">Home</a>)
+    assert sub_index =~ ~s(<a href="../../#{folder}/index.html">#{folder}</a>)
+    assert sub_index =~ ~s(<a href="../../#{sub}.html">Setup</a>)
+
+    root = File.read!(Path.join(output_dir, "index.html"))
+    assert root =~ ~s(<a href="#{folder}/index.html">#{folder}/</a>)
+
+    File.rm_rf!(output_dir)
+  end
+
+  test "an explicit <folder>/index page wins over the auto-generated index" do
+    folder = "build-explicit-#{System.unique_integer([:positive])}"
+    page = "#{folder}/index"
+    Manto.Content.save_page(page, "# My Custom Index")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    output_dir =
+      Path.join(System.tmp_dir!(), "manto_build_explicit_#{System.unique_integer([:positive])}")
+
+    Mix.Task.rerun("manto.build", ["--output", output_dir])
+
+    html = File.read!(Path.join([output_dir, folder, "index.html"]))
+    assert html =~ ~s(<h1>My Custom Index</h1>)
+    refute html =~ ~s(<h1>#{folder}</h1>)
+
+    File.rm_rf!(output_dir)
+  end
+
+  test "wiki links in nested pages resolve relative to the root" do
+    folder = "build-wiki-#{System.unique_integer([:positive])}"
+    nested = "#{folder}/With-Link"
+    Manto.Content.save_page(nested, "See [[welcome]] and [[#{folder}/Other]].")
+    Manto.Content.save_page("#{folder}/Other", "# Other")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    output_dir =
+      Path.join(System.tmp_dir!(), "manto_build_wiki_#{System.unique_integer([:positive])}")
+
+    Mix.Task.rerun("manto.build", ["--output", output_dir])
+
+    html = File.read!(Path.join([output_dir, folder, "With-Link.html"]))
+    assert html =~ ~s(href="../welcome.html")
+    assert html =~ ~s(href="../#{folder}/Other.html")
+
+    File.rm_rf!(output_dir)
+  end
+
+  test "skips nested draft pages and leaves them out of indexes" do
+    folder = "build-nested-draft-#{System.unique_integer([:positive])}"
+    draft = "#{folder}/Secret"
+
+    Manto.Content.save_page(draft, """
+    ---
+    draft: true
+    ---
+
+    # Secret
+    """)
+
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    output_dir =
+      Path.join(System.tmp_dir!(), "manto_build_ndraft_#{System.unique_integer([:positive])}")
+
+    Mix.Task.rerun("manto.build", ["--output", output_dir])
+
+    refute File.exists?(Path.join([output_dir, folder, "Secret.html"]))
+    refute File.exists?(Path.join([output_dir, folder, "index.html"]))
+
+    root = File.read!(Path.join(output_dir, "index.html"))
+    refute root =~ "Secret"
+
+    File.rm_rf!(output_dir)
+  end
+
+  test "includes nested page URLs in the rss feed and sitemap" do
+    folder = "build-feed-nested-#{System.unique_integer([:positive])}"
+    page = "#{folder}/Nested-Feed"
+    Manto.Content.save_page(page, "# Nested Feed")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    output_dir =
+      Path.join(System.tmp_dir!(), "manto_build_nfeed_#{System.unique_integer([:positive])}")
+
+    Mix.Task.rerun("manto.build", ["--output", output_dir])
+
+    rss = File.read!(Path.join(output_dir, "rss.xml"))
+    assert rss =~ ~s(<link>/#{page}.html</link>)
+    assert rss =~ ~s(<guid>/#{page}.html</guid>)
+
+    sitemap = File.read!(Path.join(output_dir, "sitemap.xml"))
+    assert sitemap =~ ~s(<loc>/#{page}.html</loc>)
+
+    File.rm_rf!(output_dir)
+  end
+
+  test "tag pages link back to nested pages" do
+    folder = "build-tag-nested-#{System.unique_integer([:positive])}"
+    page = "#{folder}/Tagged-Nested"
+
+    Manto.Content.save_page(page, """
+    ---
+    title: Tagged Nested
+    tags: nested-tag
+    ---
+
+    # Tagged Nested
+    """)
+
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    output_dir =
+      Path.join(System.tmp_dir!(), "manto_build_ntag_#{System.unique_integer([:positive])}")
+
+    Mix.Task.rerun("manto.build", ["--output", output_dir])
+
+    tag = File.read!(Path.join([output_dir, "tag", "nested-tag.html"]))
+    assert tag =~ ~s(href="../#{page}.html")
+
+    File.rm_rf!(output_dir)
+  end
 end

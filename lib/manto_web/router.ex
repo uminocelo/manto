@@ -17,10 +17,10 @@ defmodule MantoWeb.Router do
   scope "/", MantoWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", SettingsLive
     live "/editor", EditorLive
-    # new route, :page = path parameter
-    live "/editor/:page", EditorLive
+    # wildcard so pages in subfolders work, e.g. /editor/docs/guides/setup
+    live "/editor/*page", EditorLive
   end
 
   # Other scopes may use custom stacks.
