@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (no leading v). Defaults to the git tag."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18.4"
+          otp-version: "25.3"
+
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [ -z "$VERSION" ]; then VERSION="${GITHUB_REF_NAME#v}"; fi
+          if [ -z "$VERSION" ] || [ "$VERSION" = "v" ]; then VERSION="0.1.0"; fi
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Build release tarball
+        run: mix manto.release --version "${{ steps.version.outputs.version }}"
+
+      - name: Name artifact per platform
+        id: artifact
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          case "${{ runner.os }}" in
+            Linux) OS="linux" ;;
+            macOS) OS="macos" ;;
+          esac
+          ARCH="$(uname -m | sed 's/x86_64/x64/; s/aarch64/arm64/')"
+          echo "name=manto-v${VERSION}-${OS}-${ARCH}.tar.gz" >> "${GITHUB_OUTPUT}"
+
+      - name: Rename tarball
+        run: mv "dist/manto-v${{ steps.version.outputs.version }}.tar.gz" "dist/${{ steps.artifact.outputs.name }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manto-${{ matrix.os }}-tarball
+          path: dist/*.tar.gz
+
+  release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tar.gz
+          generate_release_notes: true
