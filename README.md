@@ -41,6 +41,15 @@ mix manto.build --output dist   # or to any output directory
 
 Pages can live in nested folders — `docs/guide.md` becomes `docs/guide.html`, keeping the folder structure in the output. Every page gets a breadcrumb trail back to the home page, and each folder gets an auto‑generated `index.html` listing its pages and subfolders (a page named `<folder>/index` overrides the auto‑generated one). Wiki‑links, stylesheets, and tag links all resolve correctly from any depth.
 
+### Distributing Manto
+
+```bash
+mix manto.release                # builds a self-contained tarball
+mix manto.release --version 0.2.0
+```
+
+Builds a self‑contained release (bundled BEAM runtime — end users don't need Elixir installed) into `dist/manto-vX.Y.Z.tar.gz`. After extracting, users just run `./bin/server` and open http://localhost:4000; an empty vault is seeded with `welcome.md` on first boot. Optional env vars: `PORT`, `PHX_HOST`, `SECRET_KEY_BASE`.
+
 
 ## 📂 Project Structure
 

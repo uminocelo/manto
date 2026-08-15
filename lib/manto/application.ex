@@ -7,6 +7,9 @@ defmodule Manto.Application do
 
   @impl true
   def start(_type, _args) do
+    # releases can't run mix tasks, so seed an empty vault on first boot
+    Manto.Release.init()
+
     children = [
       MantoWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:manto, :dns_cluster_query) || :ignore},

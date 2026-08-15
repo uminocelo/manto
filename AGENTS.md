@@ -9,6 +9,7 @@ Manto ("cloak" in Portuguese) is a local-first Markdown CMS built with Phoenix L
 - `mix precommit` — required gate before finishing changes (runs in `:test` env): `compile --warning-as-errors`, `deps.unlock --unused`, `format`, `test`
 - `mix test` — all tests; one file: `mix test test/manto_web/live/editor_live_test.exs`; last failures: `mix test --failed`
 - `mix manto.init` — seed `priv/content/welcome.md` if missing
+- `mix manto.release [--version X]` — builds a self-contained release tarball (`dist/manto-vX.tar.gz`, bundled BEAM runtime) via prod `assets.deploy` + `mix release`; `Manto.Release.init/0` seeds an empty vault on first boot (releases can't run mix tasks)
 - `mix manto.build [--output DIR] [--theme NAME]` — static site generator; renders every page to standalone HTML in `priv/static_site` by default, using a theme CSS from `priv/themes/*.css`. Pages keep their folder structure (`docs/guide.md` → `docs/guide.html`), get breadcrumb nav, and every folder gets an auto-generated `index.html` (an explicit `<folder>/index` page wins)
 
 ## Architecture
