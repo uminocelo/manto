@@ -173,4 +173,104 @@ defmodule MantoWeb.EditorLiveTest do
     {:ok, view, _html} = live(conn, "/editor/welcome")
     refute has_element?(view, "#broken-links")
   end
+
+  test "new page with a folder name navigates to a fresh nested page", %{conn: conn} do
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", "docs"])) end)
+
+    {:ok, view, _html} = live(conn, "/editor")
+
+    result =
+      view
+      |> form("form[phx-submit=new_page]", %{name: "docs/Nested Draft"})
+      |> render_submit()
+
+    {:error, {:live_redirect, %{to: to}}} = result
+    assert to == "/editor/docs/Nested-Draft"
+
+    {:ok, view2, html} = follow_redirect(result, conn)
+    assert html =~ "Nested-Draft"
+    assert html =~ "created"
+    assert render(view2) =~ "# Nested-Draft"
+  end
+
+  test "navigates directly to a nested page", %{conn: conn} do
+    folder = "direct-#{System.unique_integer([:positive])}"
+    page = "#{folder}/Deep-Page"
+    Manto.Content.save_page(page, "# Deep Direct")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, html} = live(conn, "/editor/#{page}")
+
+    assert html =~ "Deep Direct"
+    assert html =~ "#{page}.md"
+    assert has_element?(view, "nav ul li a", "Deep-Page")
+  end
+
+  test "lists nested pages under their folder in the sidebar", %{conn: conn} do
+    folder = "side-#{System.unique_integer([:positive])}"
+    page = "#{folder}/Deep-Page"
+    Manto.Content.save_page(page, "# Deep Page")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, html} = live(conn, "/editor/welcome")
+
+    assert has_element?(view, "nav ul li a", "Deep-Page")
+    assert html =~ "Deep-Page"
+  end
+
+  test "rejects an invalid page name with a flash", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/editor")
+
+    html =
+      view
+      |> form("form[phx-submit=new_page]", %{name: "../evil"})
+      |> render_submit()
+
+    assert html =~ "not a valid page name"
+  end
+
+  test "renames the current page into a folder", %{conn: conn} do
+    page = "Rename-Into-Folder-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    File.write!(path, "# #{page}")
+    on_exit(fn -> File.rm(path) end)
+
+    folder = "renamed-#{System.unique_integer([:positive])}"
+    new_name = "#{folder}/Moved"
+    new_path = Path.join([:code.priv_dir(:manto), "content", "#{new_name}.md"])
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    {:error, {:live_redirect, %{to: to}}} =
+      view
+      |> form("form[phx-submit=rename_page]", %{name: new_name})
+      |> render_submit()
+
+    assert to == "/editor/#{new_name}"
+    refute File.exists?(path)
+    assert File.exists?(new_path)
+  end
+
+  test "falls back to the welcome page for an unsafe page path", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/editor/../evil")
+
+    assert html =~ "welcome"
+    assert render(view) =~ "welcome"
+  end
+
+  test "warns via flash when creating a nested page that already exists", %{conn: conn} do
+    folder = "occupied-#{System.unique_integer([:positive])}"
+    Manto.Content.save_page("#{folder}/Existing", "# Existing")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, _html} = live(conn, "/editor")
+
+    html =
+      view
+      |> form("form[phx-submit=new_page]", %{name: "#{folder}/Existing"})
+      |> render_submit()
+
+    assert html =~ "already exists"
+  end
 end

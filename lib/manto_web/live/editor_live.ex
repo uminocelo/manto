@@ -4,19 +4,31 @@ defmodule MantoWeb.EditorLive do
   alias Manto.Content.Parser
 
   def mount(_params, _session, socket) do
+    pages = Content.list_pages()
+
     {:ok,
      assign(socket,
-       pages: Content.list_pages(),
+       pages: pages,
+       page_entries: page_entries(pages),
        draft_pages: Content.list_draft_pages()
      )}
   end
 
-  def handle_params(params, _uri, socket) do
-    page = params["page"] || "welcome"
+  def handle_params(%{"page" => page}, _uri, socket) when is_list(page) do
+    page = Enum.join(page, "/")
+    {:noreply, open_page(socket, page)}
+  end
+
+  def handle_params(_params, _uri, socket) do
+    {:noreply, open_page(socket, "welcome")}
+  end
+
+  defp open_page(socket, page) do
+    page = if Content.valid_page_name?(page), do: page, else: "welcome"
     existing_body = Content.get_page(page)
-    body = existing_body || "# #{page}"
+    body = existing_body || "# #{Path.basename(page)}"
     # checks if the page exists already
-    {:noreply, load_page(socket, page, body, new: is_nil(existing_body))}
+    load_page(socket, page, body, new: is_nil(existing_body))
   end
 
   def handle_event("update", %{"markdown" => body}, socket) do
@@ -27,6 +39,7 @@ defmodule MantoWeb.EditorLive do
 
   def handle_event("save", _params, socket) do
     Content.save_page(socket.assigns.page, socket.assigns.body)
+    pages = Content.list_pages()
 
     socket =
       socket
@@ -34,7 +47,8 @@ defmodule MantoWeb.EditorLive do
         saved: true,
         new: false,
         # saves and set new to false
-        pages: Content.list_pages(),
+        pages: pages,
+        page_entries: page_entries(pages),
         draft_pages: Content.list_draft_pages()
       )
       |> put_flash(:info, "\"#{socket.assigns.page}\" saved.")
@@ -49,21 +63,26 @@ defmodule MantoWeb.EditorLive do
   end
 
   def handle_event("new_page", %{"name" => name}, socket) do
-    case String.trim(name) |> String.replace(" ", "-") do
+    case slugify(name) do
       "" ->
         {:noreply, socket}
 
       # checks if a page already exists before new page creation
       slug ->
-        if slug in socket.assigns.pages do
-          {:noreply, put_flash(socket, :error, "\"#{slug}\" already exists.")}
-        else
-          socket =
-            socket
-            |> put_flash(:info, "\"#{slug}\" created.")
-            |> push_navigate(to: ~p"/editor/#{slug}")
+        cond do
+          slug in socket.assigns.pages ->
+            {:noreply, put_flash(socket, :error, "\"#{slug}\" already exists.")}
 
-          {:noreply, socket}
+          not Content.valid_page_name?(slug) ->
+            {:noreply, put_flash(socket, :error, "\"#{slug}\" is not a valid page name.")}
+
+          true ->
+            socket =
+              socket
+              |> put_flash(:info, "\"#{slug}\" created.")
+              |> push_navigate(to: "/editor/#{slug}")
+
+            {:noreply, socket}
         end
     end
   end
@@ -71,30 +90,41 @@ defmodule MantoWeb.EditorLive do
   def handle_event("rename_page", %{"name" => name}, socket) do
     from = socket.assigns.page
 
-    case String.trim(name) |> String.replace(" ", "-") do
+    case slugify(name) do
       "" ->
         {:noreply, socket}
 
       to ->
-        if to == from do
-          {:noreply, put_flash(socket, :error, "New name is the same as the current name.")}
-        else
-          case Content.rename_page(from, to) do
-            :ok ->
-              socket =
-                socket
-                |> assign(pages: Content.list_pages(), draft_pages: Content.list_draft_pages())
-                |> put_flash(:info, "\"#{from}\" renamed to \"#{to}\".")
-                |> push_navigate(to: ~p"/editor/#{to}")
+        cond do
+          to == from ->
+            {:noreply, put_flash(socket, :error, "New name is the same as the current name.")}
 
-              {:noreply, socket}
+          not Content.valid_page_name?(to) ->
+            {:noreply, put_flash(socket, :error, "\"#{to}\" is not a valid page name.")}
 
-            {:error, :already_exists} ->
-              {:noreply, put_flash(socket, :error, "\"#{to}\" already exists.")}
+          true ->
+            case Content.rename_page(from, to) do
+              :ok ->
+                pages = Content.list_pages()
 
-            {:error, _reason} ->
-              {:noreply, put_flash(socket, :error, "Could not rename \"#{from}\".")}
-          end
+                socket =
+                  socket
+                  |> assign(
+                    pages: pages,
+                    page_entries: page_entries(pages),
+                    draft_pages: Content.list_draft_pages()
+                  )
+                  |> put_flash(:info, "\"#{from}\" renamed to \"#{to}\".")
+                  |> push_navigate(to: "/editor/#{to}")
+
+                {:noreply, socket}
+
+              {:error, :already_exists} ->
+                {:noreply, put_flash(socket, :error, "\"#{to}\" already exists.")}
+
+              {:error, _reason} ->
+                {:noreply, put_flash(socket, :error, "Could not rename \"#{from}\".")}
+            end
         end
     end
   end
@@ -104,9 +134,15 @@ defmodule MantoWeb.EditorLive do
 
     case Content.delete_page(page) do
       :ok ->
+        pages = Content.list_pages()
+
         socket =
           socket
-          |> assign(pages: Content.list_pages(), draft_pages: Content.list_draft_pages())
+          |> assign(
+            pages: pages,
+            page_entries: page_entries(pages),
+            draft_pages: Content.list_draft_pages()
+          )
           |> put_flash(:info, "\"#{page}\" deleted.")
           |> push_navigate(to: ~p"/editor")
 
@@ -114,6 +150,38 @@ defmodule MantoWeb.EditorLive do
 
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Could not delete \"#{page}\".")}
+    end
+  end
+
+  defp slugify(name) do
+    name
+    |> String.trim()
+    |> String.replace(" ", "-")
+    |> String.trim("/")
+  end
+
+  defp page_entries(pages) do
+    folders =
+      pages
+      |> Enum.map(&Path.dirname/1)
+      |> Enum.reject(&(&1 == "."))
+      |> Enum.uniq()
+
+    entries =
+      for folder <- folders do
+        {page_depth(folder), :folder, folder}
+      end ++
+        for page <- pages do
+          {page_depth(page), :page, page}
+        end
+
+    Enum.sort_by(entries, fn {_depth, _kind, label} -> label end)
+  end
+
+  defp page_depth(page) do
+    case Path.dirname(page) do
+      "." -> 0
+      dir -> dir |> Path.split() |> length()
     end
   end
 

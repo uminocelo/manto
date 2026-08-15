@@ -4,24 +4,34 @@
   <nav class="w-48 shrink-0 p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto">
     <h2 class="text-sm font-semibold uppercase text-gray-500 mb-2">Pages</h2>
     <ul>
-      <li :for={p <- @pages}>
-        <.link
-          navigate={~p"/editor/#{p}"}
-          class={[
-            "block px-2 py-1 rounded text-sm",
-            if(p == @page,
-              do: "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200",
-              else: "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-            )
-          ]}
-        >
-          {p}
-          <%= if p in @draft_pages do %>
-            <span class="ml-1 text-xs font-medium uppercase text-amber-600 dark:text-amber-400">
-              draft
-            </span>
-          <% end %>
-        </.link>
+      <li
+        :for={{depth, kind, label} <- @page_entries}
+        class="flex items-center"
+        style={"padding-left: #{depth * 12}px"}
+      >
+        <%= if kind == :folder do %>
+          <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            {Path.basename(label)}
+          </span>
+        <% else %>
+          <.link
+            navigate={"/editor/#{label}"}
+            class={[
+              "flex min-w-0 items-center rounded px-2 py-1 text-sm",
+              if(label == @page,
+                do: "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200",
+                else: "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              )
+            ]}
+          >
+            <span class="truncate">{Path.basename(label)}</span>
+            <%= if label in @draft_pages do %>
+              <span class="ml-1 text-xs font-medium uppercase text-amber-600 dark:text-amber-400">
+                draft
+              </span>
+            <% end %>
+          </.link>
+        <% end %>
       </li>
     </ul>
 
@@ -29,7 +39,7 @@
       <input
         type="text"
         name="name"
-        placeholder="New page..."
+        placeholder="New page... (folder/name)"
         class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
       />
       <button

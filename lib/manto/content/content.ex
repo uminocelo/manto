@@ -18,7 +18,9 @@ defmodule Manto.Content do
   end
 
   @doc """
-  List all available pages (filenames without .md).
+  List all available pages (paths relative to the vault, without `.md`).
+
+  Pages in subfolders keep their folder, e.g. `"docs/guides/setup"`.
 
   Options:
 
@@ -28,9 +30,12 @@ defmodule Manto.Content do
     include_drafts? = Keyword.get(opts, :include_drafts, true)
 
     content_dir()
-    |> Path.join("*.md")
+    |> Path.join("**/*.md")
     |> Path.wildcard()
-    |> Enum.map(&Path.basename(&1, ".md"))
+    |> Enum.map(fn path ->
+      path |> Path.relative_to(content_dir()) |> Path.rootname()
+    end)
+    |> Enum.reject(&(&1 == ""))
     |> Enum.reject(fn name -> not include_drafts? and draft?(name) end)
   end
 
@@ -80,6 +85,7 @@ defmodule Manto.Content do
   @doc "Save Markdown body to a page (creates or overwrites)"
   def save_page(name, body) do
     path = Path.join(content_dir(), "#{name}.md")
+    File.mkdir_p!(Path.dirname(path))
     File.write!(path, body)
   end
 
@@ -118,10 +124,30 @@ defmodule Manto.Content do
         {:error, :already_exists}
 
       true ->
+        File.mkdir_p!(Path.dirname(target))
+
         case File.rename(source, target) do
           :ok -> :ok
           {:error, reason} -> {:error, reason}
         end
     end
+  end
+
+  @doc """
+  Whether `name` is a safe page slug.
+
+  Rejects empty names, absolute paths, and segments that are `""`, `"."`, or
+  `".."`, so nested names like `"docs/guides/setup"` are allowed but nothing
+  can escape the vault.
+  """
+  @spec valid_page_name?(String.t()) :: boolean()
+  def valid_page_name?(name) do
+    name = String.trim(name)
+
+    name != "" and
+      not String.starts_with?(name, "/") and
+      name
+      |> String.split("/")
+      |> Enum.all?(fn segment -> segment not in ["", ".", ".."] end)
   end
 end

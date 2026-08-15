@@ -12,10 +12,13 @@ defmodule Mix.Tasks.Manto.Build do
       mix manto.build
       mix manto.build --output dist --theme dark
 
-  Generates `index.html`, `rss.xml`, and `sitemap.xml`, copies content images
-  into the output, and builds a `tag/<tag>.html` taxonomy page per front matter
-  `tags:` value. Site-wide settings (title, description, base URL) come from a
-  `manto.json` file in the project root.
+  Pages keep their folder structure in the output (`docs/guide.md` becomes
+  `docs/guide.html`), each page gets a breadcrumb trail back to the home page,
+  and every folder gets an auto-generated `index.html` listing its pages and
+  subfolders. Also generates a root `index.html`, `rss.xml`, and `sitemap.xml`,
+  copies content images into the output, and builds a `tag/<tag>.html`
+  taxonomy page per front matter `tags:` value. Site-wide settings (title,
+  description, base URL) come from a `manto.json` file in the project root.
 
   Options:
 
@@ -60,18 +63,20 @@ defmodule Mix.Tasks.Manto.Build do
       for name <- pages do
         body = Content.get_page(name)
         metadata = Parser.metadata(body)
-        html = Parser.render_html(body, link_prefix: "", link_suffix: ".html")
-        title = Map.get(metadata, "title", name)
+        prefix = relative_prefix(name)
+        html = Parser.render_html(body, link_prefix: prefix, link_suffix: ".html")
+        title = Map.get(metadata, "title", Path.basename(name))
         tags = metadata |> Map.get("tags", []) |> List.wrap()
         broken = Content.broken_wiki_links(body, name, include_drafts: false)
 
-        File.write!(
-          Path.join(output_dir, "#{name}.html"),
+        write_output(
+          output_dir,
+          "#{name}.html",
           page_template(
             site: site,
             title: title,
             body: html,
-            pages: pages,
+            prefix: prefix,
             current: name,
             published_at: Map.get(metadata, "published_at"),
             updated_at: Map.get(metadata, "updated_at"),
@@ -90,6 +95,7 @@ defmodule Mix.Tasks.Manto.Build do
       end
 
     write_index(output_dir, site, page_data)
+    write_folder_indexes(output_dir, site, page_data)
     write_feed(output_dir, site, page_data)
     write_sitemap(output_dir, site, page_data)
     write_tag_pages(output_dir, site, page_data)
@@ -115,12 +121,47 @@ defmodule Mix.Tasks.Manto.Build do
     end
   end
 
+  # write a file into the output, creating any intermediate folders
+  defp write_output(output_dir, name, content) do
+    path = Path.join(output_dir, name)
+    File.mkdir_p!(Path.dirname(path))
+    File.write!(path, content)
+  end
+
+  # "../" repeated once per folder between the page and the output root, so
+  # root-relative hrefs (`prefix <> "foo.html"`) resolve from any depth
+  defp relative_prefix(name) do
+    depth =
+      case Path.dirname(name) do
+        "." -> 0
+        dir -> dir |> Path.split() |> length()
+      end
+
+    String.duplicate("../", depth)
+  end
+
+  # breadcrumb trail: Home / folder / ... / current label
+  defp breadcrumb_html(context, prefix, current_label) do
+    dirs =
+      case Path.dirname(context) do
+        "." -> []
+        dir -> Path.split(dir)
+      end
+
+    ancestor_links =
+      for {dir, i} <- Enum.with_index(dirs, 1) do
+        folder = Enum.take(dirs, i) |> Enum.join("/")
+        ~s(<a href="#{prefix}#{folder}/index.html">#{dir}</a>)
+      end
+
+    ([~s(<a href="#{prefix}index.html">Home</a>)] ++ ancestor_links ++ [current_label])
+    |> Enum.join(" / ")
+  end
+
   # template for each page
   defp page_template(assigns) do
-    nav =
-      Enum.map_join(assigns[:pages], "\n", fn name ->
-        ~s(<a href="#{name}.html">#{name}</a>)
-      end)
+    crumbs =
+      breadcrumb_html(assigns[:current], assigns[:prefix], assigns[:current] |> Path.basename())
 
     meta =
       [
@@ -133,8 +174,12 @@ defmodule Mix.Tasks.Manto.Build do
 
     tags =
       case assigns[:tags] do
-        [] -> nil
-        tags -> ~s(<p class="tags">) <> Enum.map_join(tags, ", ", &tag_link/1) <> "</p>"
+        [] ->
+          nil
+
+        tags ->
+          ~s(<p class="tags">) <>
+            Enum.map_join(tags, ", ", &tag_link(assigns[:prefix], &1)) <> "</p>"
       end
 
     """
@@ -143,10 +188,10 @@ defmodule Mix.Tasks.Manto.Build do
     <head>
       <meta charset="utf-8" />
       <title>#{assigns[:title]} · #{assigns[:site]["title"]}</title>
-      <link rel="stylesheet" href="style.css" />
+      <link rel="stylesheet" href="#{assigns[:prefix]}style.css" />
     </head>
     <body>
-      <nav><a href="index.html">Home</a> — #{nav}</nav>
+      <nav>#{crumbs}</nav>
       <article>
     #{meta}
     #{tags}
@@ -157,16 +202,42 @@ defmodule Mix.Tasks.Manto.Build do
     """
   end
 
+  # pages whose direct parent folder is `folder` ("" for the root)
+  defp child_pages(page_data, folder) do
+    Enum.filter(page_data, &(Path.dirname(&1.name) == if(folder == "", do: ".", else: folder)))
+  end
+
+  # direct child folders of `folder` ("" for the root), sorted
+  defp child_folders(page_data, folder) do
+    page_data
+    |> Enum.map(&Path.dirname(&1.name))
+    |> Enum.reject(&(&1 == "."))
+    |> Enum.filter(&(Path.dirname(&1) == if(folder == "", do: ".", else: folder)))
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
   defp write_index(output_dir, site, page_data) do
-    items =
-      Enum.map_join(page_data, "\n", fn page ->
+    page_items =
+      child_pages(page_data, "")
+      |> Enum.map(fn page ->
         date =
           if page.published_at, do: ~s(<span class="date">#{page.published_at}</span>), else: ""
 
         ~s(      <li><a href="#{page.name}.html">#{page.title}</a> #{date}</li>)
       end)
+      |> Enum.join("\n")
 
-    File.write!(Path.join(output_dir, "index.html"), """
+    folder_items =
+      child_folders(page_data, "")
+      |> Enum.map(fn folder ->
+        ~s(      <li><a href="#{folder}/index.html">#{Path.basename(folder)}/</a></li>)
+      end)
+      |> Enum.join("\n")
+
+    items = Enum.reject([page_items, folder_items], &(&1 == "")) |> Enum.join("\n")
+
+    write_output(output_dir, "index.html", """
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -188,6 +259,62 @@ defmodule Mix.Tasks.Manto.Build do
     """)
   end
 
+  # auto-generate an index.html for every folder that has pages beneath it
+  defp write_folder_indexes(output_dir, site, page_data) do
+    page_data
+    |> Enum.map(&Path.dirname(&1.name))
+    |> Enum.reject(&(&1 == "."))
+    |> Enum.uniq()
+    |> Enum.sort()
+    |> Enum.each(&write_folder_index(output_dir, site, page_data, &1))
+  end
+
+  defp write_folder_index(output_dir, site, page_data, folder) do
+    # an explicit page named `<folder>/index` wins over the auto-generated index
+    if Enum.any?(page_data, &(&1.name == "#{folder}/index")) do
+      :ok
+    else
+      prefix = relative_prefix("#{folder}/index")
+      crumbs = breadcrumb_html(folder, prefix, Path.basename(folder))
+
+      page_items =
+        child_pages(page_data, folder)
+        |> Enum.map(fn page ->
+          ~s(      <li><a href="#{prefix}#{page.name}.html">#{page.title}</a></li>)
+        end)
+        |> Enum.join("\n")
+
+      folder_items =
+        child_folders(page_data, folder)
+        |> Enum.map(fn sub ->
+          ~s(      <li><a href="#{prefix}#{sub}/index.html">#{Path.basename(sub)}/</a></li>)
+        end)
+        |> Enum.join("\n")
+
+      items = Enum.reject([page_items, folder_items], &(&1 == "")) |> Enum.join("\n")
+
+      write_output(output_dir, "#{folder}/index.html", """
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <title>#{Path.basename(folder)} · #{site["title"]}</title>
+        <link rel="stylesheet" href="#{prefix}style.css" />
+      </head>
+      <body>
+        <nav>#{crumbs}</nav>
+        <article>
+          <h1>#{Path.basename(folder)}</h1>
+          <ul>
+      #{items}
+          </ul>
+        </article>
+      </body>
+      </html>
+      """)
+    end
+  end
+
   defp write_feed(output_dir, site, page_data) do
     base = String.trim_trailing(site["base_url"], "/")
 
@@ -204,7 +331,7 @@ defmodule Mix.Tasks.Manto.Build do
         """
       end)
 
-    File.write!(Path.join(output_dir, "rss.xml"), """
+    write_output(output_dir, "rss.xml", """
     <?xml version="1.0" encoding="UTF-8"?>
     <rss version="2.0">
       <channel>
@@ -227,7 +354,7 @@ defmodule Mix.Tasks.Manto.Build do
         ~s(  <url><loc>#{base}/#{page.name}.html</loc>#{lastmod}</url>)
       end)
 
-    File.write!(Path.join(output_dir, "sitemap.xml"), """
+    write_output(output_dir, "sitemap.xml", """
     <?xml version="1.0" encoding="UTF-8"?>
     <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     #{urls}
@@ -252,7 +379,7 @@ defmodule Mix.Tasks.Manto.Build do
             ~s(      <li><a href="../#{page.name}.html">#{page.title}</a></li>)
           end)
 
-        File.write!(Path.join([output_dir, "tag", "#{tag_slug(tag)}.html"]), """
+        write_output(output_dir, "tag/#{tag_slug(tag)}.html", """
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -282,8 +409,8 @@ defmodule Mix.Tasks.Manto.Build do
     end
   end
 
-  defp tag_link(tag) do
-    ~s(<a href="tag/#{tag_slug(tag)}.html">#{tag}</a>)
+  defp tag_link(prefix, tag) do
+    ~s(<a href="#{prefix}tag/#{tag_slug(tag)}.html">#{tag}</a>)
   end
 
   defp tag_slug(tag) do
