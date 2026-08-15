@@ -7,7 +7,7 @@ Think of it as a lightweight cloak for your notes, docs, and ideas — simple, e
 
 ## ✨ Features (MVP)
 
-- **Local‑first**: All content lives in plain `.md` files under `priv/content/`.
+- **Local‑first**: All content lives in plain `.md` files in a configurable vault (default `priv/content/`).
 - **Live editor**: Split‑pane editor with real‑time Markdown preview.
 - **MDEx powered**: Fast, extensible Markdown rendering with syntax highlighting, emoji shortcodes, and sanitization.
 - **Git‑friendly**: Content is just files — version them however you like.
@@ -26,8 +26,18 @@ mix setup
 mix phx.server
 ```
 
-Open http://localhost:4000/editor in your browser. 
-Start editing `priv/content/welcome.md` and see changes live.
+Open http://localhost:4000 in your browser. The **settings page** lets you point Manto at your vault — the folder holding your Markdown files — and customize your site (`title`, `description`, `base URL`). Settings are saved to `manto.json` in the project root.
+
+Then head to http://localhost:4000/editor to start writing. Every save writes straight to the `.md` files in your vault, so you can edit them by hand or with any editor too.
+
+> Fresh clone? `mix setup` seeds `priv/content/welcome.md` for you (or run `mix manto.init` manually). `priv/content/*` is gitignored — your pages stay yours.
+
+### Building the static site
+
+```bash
+mix manto.build                 # renders every published page to priv/static_site/
+mix manto.build --output dist   # or to any output directory
+```
 
 
 ## 📂 Project Structure
@@ -36,12 +46,14 @@ Start editing `priv/content/welcome.md` and see changes live.
 manto/
 ├── lib/
 │   ├── manto/                # Core app
-│   │   └── content/           # Content + parser modules
+│   │   ├── content/           # Content + parser modules
+│   │   └── site.ex            # Site/vault settings (manto.json)
 │   └── manto_web/             # Phoenix web layer
-│       ├── live/              # LiveView editor & playground
+│       ├── live/              # Settings page & Markdown editor
 │       └── controllers/       # Controllers & templates
 ├── priv/
-│   └── content/               # Your Markdown files live here
+│   └── content/               # Your Markdown files live here (default vault)
+├── manto.json                 # Vault path & site settings (created on save)
 └── README.md
 ```
 
