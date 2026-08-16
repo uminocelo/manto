@@ -48,10 +48,18 @@ defmodule MantoWeb.SettingsLive do
   defp validate_vault_path(path) do
     expanded = Path.expand(path)
 
-    if File.exists?(expanded) and not File.dir?(expanded) do
-      {:error, "\"#{path}\" exists but is not a directory."}
-    else
-      :ok
+    cond do
+      String.starts_with?(path, "~") and String.contains?(expanded, "~") ->
+        {:error,
+         "Could not expand \"#{path}\": a leading \"~\" must be written as \"~/\" (your " <>
+           "home directory) or \"~user/\" (another user's home). Otherwise use an absolute " <>
+           "path such as \"/Users/name/Documents/vault\"."}
+
+      File.exists?(expanded) and not File.dir?(expanded) ->
+        {:error, "\"#{path}\" exists but is not a directory."}
+
+      true ->
+        :ok
     end
   end
 

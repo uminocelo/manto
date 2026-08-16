@@ -66,4 +66,34 @@ defmodule MantoWeb.SettingsLiveTest do
     assert html =~ "not a directory"
     refute Site.config()["vault_path"] == file
   end
+
+  test "rejects a vault path whose leading ~ cannot be expanded", %{conn: conn} do
+    bogus = "~not-a-real-user-123/manto-vault"
+
+    {:ok, view, _html} = live(conn, "/")
+
+    html =
+      view
+      |> form("#settings-form", %{vault_path: bogus})
+      |> render_submit()
+
+    assert html =~ "Could not expand"
+    refute Site.config()["vault_path"] == bogus
+    refute File.exists?(Path.expand(bogus))
+  end
+
+  test "expands a ~/ vault path to the home directory", %{conn: conn} do
+    vault = Path.join(Path.expand("~"), "manto-vault-#{System.unique_integer([:positive])}")
+    on_exit(fn -> File.rm_rf(vault) end)
+
+    {:ok, view, _html} = live(conn, "/")
+
+    html =
+      view
+      |> form("#settings-form", %{vault_path: "~/#{Path.relative_to(vault, Path.expand("~"))}"})
+      |> render_submit()
+
+    assert html =~ "Settings saved."
+    assert File.dir?(vault)
+  end
 end
