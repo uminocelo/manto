@@ -35,7 +35,22 @@
     </script>
   </head>
   <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-    <header class="p-4 flex justify-end border-1 border-b-gray-200 border-r-transparent border-l-transparent border-t-transparent">
+    <header class="p-4 flex items-center justify-between border-1 border-b-gray-200 border-r-transparent border-l-transparent border-t-transparent">
+      <nav aria-label="Breadcrumb" class="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+        <.link navigate="/" class={
+          if @conn.request_path == "/", do: "font-medium text-gray-900 dark:text-gray-100 pointer-events-none", else: "hover:text-gray-700 dark:hover:text-gray-200"
+        }>
+          Home
+        </.link>
+        <%= if String.starts_with?(@conn.request_path, "/editor") do %>
+          <span aria-hidden="true">/</span>
+          <.link navigate="/editor" class={
+            if @conn.request_path == "/editor", do: "font-medium text-gray-900 dark:text-gray-100 pointer-events-none", else: "hover:text-gray-700 dark:hover:text-gray-200"
+          }>
+            Editor
+          </.link>
+        <% end %>
+      </nav>
       <Layouts.theme_toggle />
     </header>
 
