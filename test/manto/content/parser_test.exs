@@ -92,7 +92,7 @@ date: not-a-date
     html = Parser.render_html("```elixir\nEnum.map([1, 2], &(&1 * 2))\n```")
 
     assert html =~ ~s(<code class="language-elixir")
-    assert html =~ ~s(<pre class="athl")
+    assert html =~ ~s(<pre class="lumis")
   end
 
   test "wiki_link_targets/1 extracts slugified, deduplicated targets" do
