@@ -5,14 +5,26 @@
     <h2 class="text-sm font-semibold uppercase text-gray-500 mb-2">Pages</h2>
     <ul>
       <li
-        :for={{depth, kind, label} <- @page_entries}
+        :for={{depth, kind, label} <- visible_entries(@page_entries, @collapsed_folders)}
         class="flex items-center"
         style={"padding-left: #{depth * 12}px"}
       >
         <%= if kind == :folder do %>
-          <span class="text-xs font-semibold uppercase tracking-wide text-gray-400">
+          <button
+            type="button"
+            phx-click="toggle_folder"
+            phx-value-folder={label}
+            class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            <.icon
+              name="hero-chevron-right-mini"
+              class={
+                "size-3 transition-transform" <>
+                  if(not MapSet.member?(@collapsed_folders, label), do: " rotate-90", else: "")
+              }
+            />
             {Path.basename(label)}
-          </span>
+          </button>
         <% else %>
           <.link
             navigate={"/editor/#{label}"}

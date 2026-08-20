@@ -7,7 +7,7 @@ defmodule Manto.Content.Parser do
 
   @mdex_opts [
     extension: [front_matter_delimiter: "---", table: true, shortcodes: true],
-    syntax_highlight: [formatter: {:html_inline, theme: "onedark"}]
+    syntax_highlight: [engine: :lumis, opts: [formatter: {:html_inline, theme: "onedark"}]]
   ]
   @wiki_link_regex ~r/\[\[([^\]]+)\]\]/
 

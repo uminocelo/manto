@@ -30,6 +30,9 @@ config :manto, MantoWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :manto, Manto.Mailer, adapter: Swoosh.Adapters.Local
 
+# MDEx 0.13 ships syntax highlighting as an opt-in native feature.
+config :mdex_native, syntax_highlighter: :lumis
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

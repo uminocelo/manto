@@ -10,7 +10,8 @@ defmodule MantoWeb.EditorLive do
      assign(socket,
        pages: pages,
        page_entries: page_entries(pages),
-       draft_pages: Content.list_draft_pages()
+       draft_pages: Content.list_draft_pages(),
+       collapsed_folders: MapSet.new()
      )}
   end
 
@@ -29,6 +30,15 @@ defmodule MantoWeb.EditorLive do
     body = existing_body || "# #{Path.basename(page)}"
     # checks if the page exists already
     load_page(socket, page, body, new: is_nil(existing_body))
+  end
+
+  def handle_event("toggle_folder", %{"folder" => folder}, socket) do
+    collapsed =
+      if MapSet.member?(socket.assigns.collapsed_folders, folder),
+        do: MapSet.delete(socket.assigns.collapsed_folders, folder),
+        else: MapSet.put(socket.assigns.collapsed_folders, folder)
+
+    {:noreply, assign(socket, collapsed_folders: collapsed)}
   end
 
   def handle_event("update", %{"markdown" => body}, socket) do
@@ -158,6 +168,15 @@ defmodule MantoWeb.EditorLive do
     |> String.trim()
     |> String.replace(" ", "-")
     |> String.trim("/")
+  end
+
+  defp visible_entries(entries, collapsed_folders) do
+    Enum.reject(entries, fn {_depth, _kind, label} ->
+      # Hide the entry if any ancestor folder is collapsed
+      Enum.any?(collapsed_folders, fn folder ->
+        String.starts_with?(label, folder <> "/")
+      end)
+    end)
   end
 
   defp page_entries(pages) do

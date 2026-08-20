@@ -4,6 +4,12 @@ defmodule Manto.ContentTest do
 
   defp unique(prefix), do: "#{prefix}-#{System.unique_integer([:positive])}"
 
+  setup do
+    config_path = Manto.Site.config_path()
+    File.rm(config_path)
+    on_exit(fn -> File.rm(config_path) end)
+  end
+
   defp write_page(name, body) do
     path = Path.join([:code.priv_dir(:manto), "content", "#{name}.md"])
     File.write!(path, body)
