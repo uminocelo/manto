@@ -1,6 +1,12 @@
 defmodule Mix.Tasks.Manto.BuildTest do
   use ExUnit.Case, async: false
 
+  setup do
+    config_path = Manto.Site.config_path()
+    File.rm(config_path)
+    on_exit(fn -> File.rm(config_path) end)
+  end
+
   defp drain_shell_messages(acc \\ []) do
     receive do
       {:mix_shell, :info, [line]} -> drain_shell_messages([line | acc])

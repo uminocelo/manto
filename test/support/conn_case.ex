@@ -32,6 +32,10 @@ defmodule MantoWeb.ConnCase do
   end
 
   setup _tags do
+    config_path = Manto.Site.config_path()
+    File.rm(config_path)
+    on_exit(fn -> File.rm(config_path) end)
+
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

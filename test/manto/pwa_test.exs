@@ -9,7 +9,7 @@ defmodule Manto.PwaTest do
     assert manifest["short_name"] == "Manto"
     assert manifest["start_url"] == "/"
     assert manifest["display"] == "standalone"
-    assert manifest["theme_color"] == "#df4f00"
+    assert manifest["theme_color"] == "#1800ad"
 
     assert [%{"src" => "/images/icon-192.png"}, %{"src" => "/images/icon-512.png"}] =
              manifest["icons"]
