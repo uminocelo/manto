@@ -226,7 +226,10 @@ defmodule MantoWeb.EditorLive do
   def render_tree(assigns) do
     ~H"""
     <ul>
-      <li :for={entry <- children_at(@entries, @parent, @collapsed_folders)}>
+      <li
+        :for={entry <- children_at(@entries, @parent, @collapsed_folders)}
+        style={"padding-left: #{elem(entry, 0) * 16}px"}
+      >
         <% {_depth, kind, label} = entry %>
         <%= if kind == :folder do %>
           <button
