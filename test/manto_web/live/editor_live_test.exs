@@ -311,4 +311,72 @@ defmodule MantoWeb.EditorLiveTest do
     assert has_element?(view, "button[phx-click=toggle_folder]", folder)
     assert has_element?(view, "nav ul li a", zeta)
   end
+
+  # --- Issue 2.1: Filter and reveal ---
+
+  test "filter input is present in the sidebar", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/editor")
+    assert has_element?(view, "#filter-form")
+  end
+
+  test "filter text narrows the visible page list", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/editor")
+
+    # initially the welcome page is visible
+    assert has_element?(view, "nav ul li a", "welcome")
+
+    # apply a filter that doesn't match "welcome"
+    view
+    |> form("#filter-form", %{filter: "mobile"})
+    |> render_change()
+
+    # welcome should no longer be visible
+    refute has_element?(view, "nav ul li a", "welcome")
+
+    # clear the filter
+    view
+    |> form("#filter-form", %{filter: ""})
+    |> render_change()
+
+    # welcome should be back
+    assert has_element?(view, "nav ul li a", "welcome")
+  end
+
+  # --- Issue 2.2: New page in context ---
+
+  test "new page input shows folder prefix when editing a nested page", %{conn: conn} do
+    folder = "newctx-#{System.unique_integer([:positive])}"
+    page = "#{folder}/Existing"
+    Manto.Content.save_page(page, "# Existing")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    # the new page input shows the folder prefix
+    assert has_element?(view, "input[name=name][value='#{folder}/']")
+  end
+
+  test "new page from a nested editor creates in the current folder", %{conn: conn} do
+    folder = "createin-#{System.unique_integer([:positive])}"
+    page = "#{folder}/Existing"
+    Manto.Content.save_page(page, "# Existing")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    result =
+      view
+      |> form("form[phx-submit=new_page]", %{name: "#{folder}/Child"})
+      |> render_submit()
+
+    {:error, {:live_redirect, %{to: to}}} = result
+    assert to == "/editor/#{folder}/Child"
+  end
+
+  test "new page from root editor stays unprefixed", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/editor/welcome")
+
+    # root page — no folder prefix in placeholder
+    refute html =~ "New in"
+  end
 end

@@ -12,7 +12,8 @@ defmodule MantoWeb.EditorLive do
        page_entries: page_entries(pages),
        page_titles: Content.list_titles(),
        draft_pages: Content.list_draft_pages(),
-       collapsed_folders: MapSet.new()
+       collapsed_folders: MapSet.new(),
+       filter: ""
      )}
   end
 
@@ -31,6 +32,10 @@ defmodule MantoWeb.EditorLive do
     body = existing_body || "# #{Path.basename(page)}"
     # checks if the page exists already
     load_page(socket, page, body, new: is_nil(existing_body))
+  end
+
+  def handle_event("filter", %{"filter" => filter}, socket) do
+    {:noreply, assign(socket, filter: filter)}
   end
 
   def handle_event("toggle_folder", %{"folder" => folder}, socket) do
@@ -171,13 +176,33 @@ defmodule MantoWeb.EditorLive do
     |> String.trim("/")
   end
 
-  defp visible_entries(entries, collapsed_folders) do
-    Enum.reject(entries, fn {_depth, _kind, label} ->
-      # Hide the entry if any ancestor folder is collapsed
-      Enum.any?(collapsed_folders, fn folder ->
-        String.starts_with?(label, folder <> "/")
+  defp visible_entries(entries, collapsed_folders, filter) do
+    if filter == "" do
+      # Normal behavior: respect collapse
+      Enum.reject(entries, fn {_depth, _kind, label} ->
+        Enum.any?(collapsed_folders, fn folder ->
+          String.starts_with?(label, folder <> "/")
+        end)
       end)
-    end)
+    else
+      # Filtering mode: ignore collapse, show matches + ancestors
+      filter_lower = String.downcase(filter)
+
+      matches = Enum.filter(entries, fn {_depth, _kind, label} ->
+        String.contains?(String.downcase(label), filter_lower) or
+          String.contains?(String.downcase(Path.basename(label)), filter_lower)
+      end)
+
+      ancestor_labels =
+        matches
+        |> Enum.flat_map(fn {_depth, _kind, label} -> ancestor_folders(label) end)
+        |> MapSet.new()
+
+      Enum.filter(entries, fn {_depth, _kind, label} ->
+        MapSet.member?(ancestor_labels, label) or
+          Enum.any?(matches, fn {_d, _k, l} -> l == label end)
+      end)
+    end
   end
 
   defp page_entries(pages) do
@@ -198,6 +223,22 @@ defmodule MantoWeb.EditorLive do
     Enum.sort_by(entries, fn {depth, kind, label} ->
       {depth, kind_order(kind), String.downcase(label)}
     end)
+  end
+
+  defp new_page_placeholder(page) do
+    if page && Path.dirname(page) != "." do
+      "New in #{Path.dirname(page)}/..."
+    else
+      "New page..."
+    end
+  end
+
+  defp new_page_default(page) do
+    if page && Path.dirname(page) != "." do
+      Path.dirname(page) <> "/"
+    else
+      ""
+    end
   end
 
   defp kind_order(:folder), do: 0
@@ -223,13 +264,14 @@ defmodule MantoWeb.EditorLive do
   attr :current_page, :string, required: true
   attr :draft_pages, :list, required: true
   attr :page_titles, :map, required: true
+  attr :filter, :string, default: ""
   attr :parent, :string, default: nil
 
   def render_tree(assigns) do
     ~H"""
     <ul>
       <li
-        :for={entry <- children_at(@entries, @parent, @collapsed_folders)}
+        :for={entry <- children_at(@entries, @parent, @collapsed_folders, @filter)}
         style={"padding-left: #{elem(entry, 0) * 16}px"}
       >
         <% {_depth, kind, label} = entry %>
@@ -256,11 +298,13 @@ defmodule MantoWeb.EditorLive do
             current_page={@current_page}
             draft_pages={@draft_pages}
             page_titles={@page_titles}
+            filter={@filter}
             parent={label}
           />
         <% else %>
           <.link
             navigate={"/editor/#{label}"}
+            id={"page-link-#{String.replace(label, "/", "-")}"}
             class={[
               "flex min-w-0 items-center rounded px-2 py-1 text-sm group",
               if(label == @current_page,
@@ -288,8 +332,8 @@ defmodule MantoWeb.EditorLive do
     """
   end
 
-  defp children_at(entries, parent, collapsed_folders) do
-    visible = visible_entries(entries, collapsed_folders)
+  defp children_at(entries, parent, collapsed_folders, filter) do
+    visible = visible_entries(entries, collapsed_folders, filter)
 
     Enum.filter(visible, fn {_depth, _kind, label} ->
       if parent do
