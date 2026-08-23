@@ -2,19 +2,32 @@
 
 <main class="flex h-[calc(100vh-68px)] bg-gray-50 dark:bg-gray-900">
   <nav class="w-64 shrink-0 p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto">
-    <h2 class="text-sm font-semibold uppercase text-gray-500 mb-2">Pages</h2>
+    <div class="mb-2">
+      <form phx-change="filter" id="filter-form">
+        <input
+          type="text"
+          name="filter"
+          placeholder="Filter pages..."
+          value={@filter}
+          class="w-full px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+        />
+      </form>
+    </div>
+
     <.render_tree
       entries={@page_entries}
       collapsed_folders={@collapsed_folders}
       current_page={@page}
       draft_pages={@draft_pages}
+      filter={@filter}
     />
 
     <form phx-submit="new_page" class="mt-4 flex gap-1">
       <input
         type="text"
         name="name"
-        placeholder="New page... (folder/name)"
+        placeholder={new_page_placeholder(@page)}
+        value={new_page_default(@page)}
         class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
       />
       <button
