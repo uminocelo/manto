@@ -45,6 +45,26 @@ defmodule Manto.Content do
     |> Enum.filter(&draft?/1)
   end
 
+  @doc """
+  Return a map of page slug → title from front matter, falling back to the slug when no title is set.
+
+  Reads each page once to extract the `title` field from YAML front matter.
+  """
+  @spec list_titles() :: %{String.t() => String.t()}
+  def list_titles do
+    list_pages()
+    |> Enum.map(fn slug ->
+      title =
+        case get_page(slug) do
+          nil -> slug
+          body -> body |> Parser.metadata() |> Map.get("title", slug)
+        end
+
+      {slug, title}
+    end)
+    |> Map.new()
+  end
+
   @doc "Whether the page's front matter marks it as a draft."
   def draft?(name) do
     case get_page(name) do

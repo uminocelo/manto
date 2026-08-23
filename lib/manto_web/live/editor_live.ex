@@ -10,6 +10,7 @@ defmodule MantoWeb.EditorLive do
      assign(socket,
        pages: pages,
        page_entries: page_entries(pages),
+       page_titles: Content.list_titles(),
        draft_pages: Content.list_draft_pages(),
        collapsed_folders: MapSet.new()
      )}
@@ -221,6 +222,7 @@ defmodule MantoWeb.EditorLive do
   attr :collapsed_folders, :any, required: true
   attr :current_page, :string, required: true
   attr :draft_pages, :list, required: true
+  attr :page_titles, :map, required: true
   attr :parent, :string, default: nil
 
   def render_tree(assigns) do
@@ -245,6 +247,7 @@ defmodule MantoWeb.EditorLive do
                   if(not MapSet.member?(@collapsed_folders, label), do: " rotate-90", else: "")
               }
             />
+            <.icon name="hero-folder-mini" class="size-4 shrink-0 text-gray-400" />
             {Path.basename(label)}
           </button>
           <.render_tree
@@ -252,20 +255,27 @@ defmodule MantoWeb.EditorLive do
             collapsed_folders={@collapsed_folders}
             current_page={@current_page}
             draft_pages={@draft_pages}
+            page_titles={@page_titles}
             parent={label}
           />
         <% else %>
           <.link
             navigate={"/editor/#{label}"}
             class={[
-              "flex min-w-0 items-center rounded px-2 py-1 text-sm",
+              "flex min-w-0 items-center rounded px-2 py-1 text-sm group",
               if(label == @current_page,
                 do: "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200",
                 else: "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               )
             ]}
           >
-            <span class="truncate">{Path.basename(label)}</span>
+            <.icon name="hero-document-text-mini" class="size-4 shrink-0 text-gray-400" />
+            <span class="truncate">
+              {Map.get(@page_titles, label, Path.basename(label))}
+            </span>
+            <span class="ml-1 hidden truncate text-xs text-gray-400 group-hover:inline" title={label}>
+              {label}
+            </span>
             <%= if label in @draft_pages do %>
               <span class="ml-1 text-xs font-medium uppercase text-amber-600 dark:text-amber-400">
                 draft

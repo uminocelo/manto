@@ -8,6 +8,7 @@
       collapsed_folders={@collapsed_folders}
       current_page={@page}
       draft_pages={@draft_pages}
+      page_titles={@page_titles}
     />
 
     <form phx-submit="new_page" class="mt-4 flex gap-1">
@@ -24,20 +25,6 @@
         New
       </button>
     </form>
-
-    <%= if @broken_links != [] do %>
-      <div id="broken-links" class="mt-6">
-        <h3 class="text-sm font-semibold uppercase text-gray-500 mb-2">Broken links</h3>
-        <ul class="space-y-1">
-          <li
-            :for={target <- @broken_links}
-            class="text-sm text-red-600 dark:text-red-400"
-          >
-            [[{target}]]
-          </li>
-        </ul>
-      </div>
-    <% end %>
   </nav>
 
   <section class="flex-1 p-6 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
@@ -111,6 +98,19 @@
           Save
         </button>
       </div>
+      <%= if @broken_links != [] do %>
+        <div id="broken-links" class="mt-4">
+          <h3 class="text-xs font-semibold uppercase text-gray-500 mb-1">Broken links</h3>
+          <ul class="space-y-1">
+            <li
+              :for={target <- @broken_links}
+              class="text-sm text-red-600 dark:text-red-400"
+            >
+              [[{target}]]
+            </li>
+          </ul>
+        </div>
+      <% end %>
     </.form>
   </section>
 
