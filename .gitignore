@@ -33,3 +33,14 @@ assets/node_modules/
 /.manto/
 /priv/content/*
 /dist/
+
+# Environments
+.env
+.env.*
+!.env.example
+
+# Plan
+# .plan/
+
+# Manto
+manto.json

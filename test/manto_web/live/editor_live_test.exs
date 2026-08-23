@@ -273,4 +273,42 @@ defmodule MantoWeb.EditorLiveTest do
 
     assert html =~ "already exists"
   end
+
+  test "sidebar shows ancestor folders for deeply nested pages", %{conn: conn} do
+    folder = "deep-#{System.unique_integer([:positive])}"
+    Manto.Content.save_page("#{folder}/guides/setup", "# Setup")
+    Manto.Content.save_page("#{folder}/guides/usage", "# Usage")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{folder}/guides/setup")
+
+    # ancestor folders appear as clickable folder rows (displayed by basename)
+    assert has_element?(view, "button[phx-click=toggle_folder]", folder)
+    assert has_element?(view, "button[phx-click=toggle_folder]", "guides")
+    assert has_element?(view, "button[phx-value-folder='#{folder}/guides']", "guides")
+
+    # leaf pages are listed under their immediate parent
+    assert has_element?(view, "nav ul li a", "setup")
+    assert has_element?(view, "nav ul li a", "usage")
+  end
+
+  test "sidebar ancestors are sorted folders-first", %{conn: conn} do
+    folder = "sort-#{System.unique_integer([:positive])}"
+    Manto.Content.save_page("#{folder}/alpha", "# Alpha")
+    Manto.Content.save_page("#{folder}/beta", "# Beta")
+    # a page at the root level, not inside the folder
+    zeta = "sort-zeta-#{System.unique_integer([:positive])}"
+    Manto.Content.save_page(zeta, "# Zeta")
+
+    on_exit(fn ->
+      File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder]))
+      File.rm(Path.join([:code.priv_dir(:manto), "content", "#{zeta}.md"]))
+    end)
+
+    {:ok, view, _html} = live(conn, "/editor")
+
+    # folder row appears before the page row
+    assert has_element?(view, "button[phx-click=toggle_folder]", folder)
+    assert has_element?(view, "nav ul li a", zeta)
+  end
 end
