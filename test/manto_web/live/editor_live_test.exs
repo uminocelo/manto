@@ -149,7 +149,7 @@ defmodule MantoWeb.EditorLiveTest do
     refute File.exists?(path)
   end
 
-  test "lists broken wiki links in the sidebar and updates them while typing", %{conn: conn} do
+  test "lists broken wiki links in the editor column and updates them while typing", %{conn: conn} do
     page = "Broken-Ed-#{System.unique_integer([:positive])}"
     path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
     File.write!(path, "See [[Missing-One-ABC]].")
