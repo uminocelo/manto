@@ -12,10 +12,10 @@ defmodule MantoWeb.EditorLive do
        page_entries: page_entries(pages),
        page_titles: Content.list_titles(),
        draft_pages: Content.list_draft_pages(),
-      collapsed_folders: MapSet.new(),
-      filter: "",
-      sidebar_rename_target: nil,
-      new_in_folder: nil
+       collapsed_folders: MapSet.new(),
+       filter: "",
+       sidebar_rename_target: nil,
+       new_in_folder: nil
      )}
   end
 
@@ -46,6 +46,14 @@ defmodule MantoWeb.EditorLive do
         do: MapSet.delete(socket.assigns.collapsed_folders, folder),
         else: MapSet.put(socket.assigns.collapsed_folders, folder)
 
+    {:noreply,
+     socket
+     |> assign(collapsed_folders: collapsed)
+     |> push_event("persist_collapse", %{collapsed_folders: MapSet.to_list(collapsed)})}
+  end
+
+  def handle_event("restore_collapsed", %{"folders" => folders}, socket) do
+    collapsed = MapSet.new(folders)
     {:noreply, assign(socket, collapsed_folders: collapsed)}
   end
 
@@ -418,6 +426,87 @@ defmodule MantoWeb.EditorLive do
     {:noreply, assign(socket, sidebar_rename_target: nil)}
   end
 
+  # --- M6 drag-and-drop move events ---
+
+  def handle_event("move_page", %{"page" => page, "target_folder" => folder}, socket) do
+    basename = Path.basename(page)
+    to = "#{folder}/#{basename}"
+
+    if to == page do
+      {:noreply, socket}
+    else
+      case Content.rename_page(page, to) do
+        :ok ->
+          pages = Content.list_pages()
+
+          socket =
+            socket
+            |> assign(
+              pages: pages,
+              page_entries: page_entries(pages),
+              draft_pages: Content.list_draft_pages()
+            )
+            |> put_flash(:info, "\"#{page}\" moved to \"#{folder}\".")
+
+          socket =
+            if socket.assigns.page == page do
+              push_navigate(socket, to: "/editor/#{to}")
+            else
+              socket
+            end
+
+          {:noreply, socket}
+
+        {:error, :already_exists} ->
+          {:noreply, put_flash(socket, :error, "\"#{to}\" already exists.")}
+
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Could not move \"#{page}\".")}
+      end
+    end
+  end
+
+  def handle_event("move_folder", %{"folder" => folder, "target_folder" => target}, socket) do
+    basename = Path.basename(folder)
+    to = "#{target}/#{basename}"
+
+    if to == folder do
+      {:noreply, socket}
+    else
+      case Content.rename_folder(folder, to) do
+        :ok ->
+          pages = Content.list_pages()
+
+          socket =
+            socket
+            |> assign(
+              pages: pages,
+              page_entries: page_entries(pages),
+              sidebar_rename_target: nil
+            )
+            |> put_flash(:info, "\"#{folder}\" moved to \"#{target}\".")
+
+          socket =
+            if String.starts_with?(socket.assigns.page, folder <> "/") do
+              socket |> push_navigate(to: ~p"/editor")
+            else
+              socket
+            end
+
+          {:noreply, socket}
+
+        {:error, :not_found} ->
+          {:noreply, put_flash(socket, :error, "\"#{folder}\" not found.")}
+
+        {:error, :already_exists} ->
+          {:noreply, put_flash(socket, :error, "\"#{to}\" already exists.")}
+
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Could not move \"#{folder}\".")}
+      end
+    end
+  end
+
   defp slugify(name) do
     name
     |> String.trim()
@@ -544,8 +633,10 @@ defmodule MantoWeb.EditorLive do
   attr :new_in_folder, :string, default: nil
 
   def render_tree(assigns) do
+    tree_id = if assigns.parent, do: "editor-tree-#{slug_id(assigns.parent)}", else: "editor-tree"
+
     ~H"""
-    <ul>
+    <ul id={tree_id} phx-hook="DragDrop">
       <li
         :for={entry <- children_at(@entries, @parent, @collapsed_folders, @filter)}
         style={"padding-left: #{elem(entry, 0) * 16}px"}
@@ -580,7 +671,12 @@ defmodule MantoWeb.EditorLive do
               </button>
             </form>
           <% else %>
-            <div class="flex items-center justify-between group">
+            <div
+              class="flex items-center justify-between group"
+              data-drag-folder={label}
+              draggable="true"
+              data-drop-folder={label}
+            >
               <div class="flex items-center">
                 <button
                   type="button"
@@ -694,7 +790,7 @@ defmodule MantoWeb.EditorLive do
               </button>
             </form>
           <% else %>
-            <div class="flex items-center group">
+            <div class="flex items-center group" data-drag-page={label} draggable="true">
               <.link
                 navigate={"/editor/#{label}"}
                 id={"page-link-#{slug_id(label)}"}
@@ -710,7 +806,10 @@ defmodule MantoWeb.EditorLive do
                 <span class="truncate">
                   {Map.get(@page_titles, label, Path.basename(label))}
                 </span>
-                <span class="ml-1 hidden truncate text-xs text-gray-400 group-hover:inline" title={label}>
+                <span
+                  class="ml-1 hidden truncate text-xs text-gray-400 group-hover:inline"
+                  title={label}
+                >
                   {label}
                 </span>
                 <%= if label in @draft_pages do %>

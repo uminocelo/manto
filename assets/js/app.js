@@ -24,13 +24,16 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/manto"
 import {EditorGuard} from "./editor_guard"
+import {CollapseGuard} from "./collapse_guard"
+import {SidebarResizer} from "./sidebar_resizer"
+import {DragDrop} from "./drag_drop"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, EditorGuard},
+  hooks: {...colocatedHooks, EditorGuard, CollapseGuard, SidebarResizer, DragDrop},
 })
 
 // Show progress bar on live navigation and form submits

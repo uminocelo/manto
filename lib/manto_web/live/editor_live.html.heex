@@ -1,45 +1,56 @@
 <Layouts.flash_group flash={@flash} />
 
 <main class="flex h-[calc(100vh-68px)] bg-gray-50 dark:bg-gray-900">
-  <nav class="w-64 shrink-0 p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto">
-    <div class="mb-2">
-      <form phx-change="filter" id="filter-form">
+  <nav
+    id="editor-nav"
+    class="w-64 shrink-0 p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto relative"
+    phx-hook="SidebarResizer"
+  >
+    <div id="editor-nav-collapse" phx-hook="CollapseGuard">
+      <div class="mb-2">
+        <form phx-change="filter" id="filter-form">
+          <input
+            type="text"
+            name="filter"
+            placeholder="Filter pages..."
+            value={@filter}
+            class="w-full px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+          />
+        </form>
+      </div>
+
+      <.render_tree
+        entries={@page_entries}
+        collapsed_folders={@collapsed_folders}
+        current_page={@page}
+        draft_pages={@draft_pages}
+        page_titles={@page_titles}
+        filter={@filter}
+        sidebar_rename_target={@sidebar_rename_target}
+        new_in_folder={@new_in_folder}
+      />
+
+      <form phx-submit="new_page" class="mt-4 flex gap-1">
         <input
           type="text"
-          name="filter"
-          placeholder="Filter pages..."
-          value={@filter}
-          class="w-full px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+          name="name"
+          placeholder={new_page_placeholder(@page)}
+          value={new_page_default(@page)}
+          class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
         />
+        <button
+          type="submit"
+          class="px-2 py-1 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+        >
+          New
+        </button>
       </form>
     </div>
-
-    <.render_tree
-      entries={@page_entries}
-      collapsed_folders={@collapsed_folders}
-      current_page={@page}
-      draft_pages={@draft_pages}
-      page_titles={@page_titles}
-      filter={@filter}
-      sidebar_rename_target={@sidebar_rename_target}
-      new_in_folder={@new_in_folder}
-    />
-
-    <form phx-submit="new_page" class="mt-4 flex gap-1">
-      <input
-        type="text"
-        name="name"
-        placeholder={new_page_placeholder(@page)}
-        value={new_page_default(@page)}
-        class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
-      />
-      <button
-        type="submit"
-        class="px-2 py-1 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-      >
-        New
-      </button>
-    </form>
+    <div
+      id="sidebar-resize-handle"
+      class="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-400 active:bg-indigo-600"
+    >
+    </div>
   </nav>
 
   <section class="flex-1 p-6 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
