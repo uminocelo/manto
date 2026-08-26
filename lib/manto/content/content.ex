@@ -154,6 +154,120 @@ defmodule Manto.Content do
   end
 
   @doc """
+  List all directories under the vault (relative paths, sorted).
+
+  Includes empty directories.
+  """
+  @spec list_folders() :: [String.t()]
+  def list_folders do
+    walk_folders(content_dir())
+    |> Enum.sort()
+  end
+
+  defp walk_folders(dir) do
+    case File.ls(dir) do
+      {:ok, entries} ->
+        entries
+        |> Enum.flat_map(fn entry ->
+          path = Path.join(dir, entry)
+
+          if File.dir?(path) do
+            relative = Path.relative_to(path, content_dir())
+            [relative | walk_folders(path)]
+          else
+            []
+          end
+        end)
+
+      {:error, _} ->
+        []
+    end
+  end
+
+  @doc """
+  Create a directory inside the vault.
+
+  Returns `:ok` on success, `{:error, :invalid_name}` when the name fails
+  `valid_page_name?/1`, or `{:error, reason}` when the file system refuses.
+  """
+  def mkdir(name) do
+    if valid_page_name?(name) do
+      path = Path.join(content_dir(), name)
+
+      case File.mkdir_p(path) do
+        :ok -> :ok
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      {:error, :invalid_name}
+    end
+  end
+
+  @doc """
+  Rename a folder (prefix rewrite).
+
+  Moves every page and subfolder under `from` to the corresponding path under
+  `to`. Returns `:ok` on success, `{:error, :not_found}` when the source
+  doesn't exist, `{:error, :already_exists}` when the target exists,
+  `{:error, :invalid_name}` when either name is invalid, or `{:error, reason}`
+  when the file system refuses.
+  """
+  def rename_folder(from, to) do
+    cond do
+      not valid_page_name?(from) ->
+        {:error, :invalid_name}
+
+      not valid_page_name?(to) ->
+        {:error, :invalid_name}
+
+      not File.dir?(Path.join(content_dir(), from)) ->
+        {:error, :not_found}
+
+      File.exists?(Path.join(content_dir(), to)) ->
+        {:error, :already_exists}
+
+      true ->
+        source = Path.join(content_dir(), from)
+        target = Path.join(content_dir(), to)
+        File.mkdir_p!(Path.dirname(target))
+
+        case File.rename(source, target) do
+          :ok -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+    end
+  end
+
+  @doc """
+  Delete a folder and all its contents recursively.
+
+  Refuses to delete the vault root or escape the vault. Returns `:ok` on
+  success, `{:error, :not_found}` when the folder doesn't exist,
+  `{:error, :invalid_name}` when the name is invalid, or `{:error, reason}`
+  when the file system refuses.
+  """
+  def delete_folder(name) do
+    cond do
+      not valid_page_name?(name) ->
+        {:error, :invalid_name}
+
+      name == "" ->
+        {:error, :invalid_name}
+
+      not File.dir?(Path.join(content_dir(), name)) ->
+        {:error, :not_found}
+
+      true ->
+        path = Path.join(content_dir(), name)
+
+        case File.rm_rf(path) do
+          {:ok, _} -> :ok
+          {:error, _reason, _file} -> {:error, :failed}
+        end
+    end
+  end
+
+  @doc """
   Whether `name` is a safe page slug.
 
   Rejects empty names, absolute paths, and segments that are `""`, `"."`, or

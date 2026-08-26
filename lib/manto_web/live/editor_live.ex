@@ -13,7 +13,8 @@ defmodule MantoWeb.EditorLive do
        page_titles: Content.list_titles(),
        draft_pages: Content.list_draft_pages(),
        collapsed_folders: MapSet.new(),
-       filter: ""
+       filter: "",
+       sidebar_rename_target: nil
      )}
   end
 
@@ -65,7 +66,8 @@ defmodule MantoWeb.EditorLive do
         # saves and set new to false
         pages: pages,
         page_entries: page_entries(pages),
-        draft_pages: Content.list_draft_pages()
+        draft_pages: Content.list_draft_pages(),
+        sidebar_rename_target: nil
       )
       |> put_flash(:info, "\"#{socket.assigns.page}\" saved.")
       |> push_event("draft_saved", %{})
@@ -128,7 +130,8 @@ defmodule MantoWeb.EditorLive do
                   |> assign(
                     pages: pages,
                     page_entries: page_entries(pages),
-                    draft_pages: Content.list_draft_pages()
+                    draft_pages: Content.list_draft_pages(),
+                    sidebar_rename_target: nil
                   )
                   |> put_flash(:info, "\"#{from}\" renamed to \"#{to}\".")
                   |> push_navigate(to: "/editor/#{to}")
@@ -157,7 +160,8 @@ defmodule MantoWeb.EditorLive do
           |> assign(
             pages: pages,
             page_entries: page_entries(pages),
-            draft_pages: Content.list_draft_pages()
+            draft_pages: Content.list_draft_pages(),
+            sidebar_rename_target: nil
           )
           |> put_flash(:info, "\"#{page}\" deleted.")
           |> push_navigate(to: ~p"/editor")
@@ -167,6 +171,89 @@ defmodule MantoWeb.EditorLive do
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Could not delete \"#{page}\".")}
     end
+  end
+
+  def handle_event("rename_folder", %{"name" => name}, socket) do
+    from = socket.assigns.sidebar_rename_target
+
+    case slugify(name) do
+      "" ->
+        {:noreply, socket}
+
+      to ->
+        case Content.rename_folder(from, to) do
+          :ok ->
+            pages = Content.list_pages()
+
+            socket =
+              socket
+              |> assign(
+                pages: pages,
+                page_entries: page_entries(pages),
+                sidebar_rename_target: nil
+              )
+              |> put_flash(:info, "\"#{from}\" renamed to \"#{to}\".")
+
+            # If the open page was inside the renamed folder, navigate to /editor
+            socket =
+              if String.starts_with?(socket.assigns.page, from <> "/") do
+                socket |> push_navigate(to: ~p"/editor")
+              else
+                socket
+              end
+
+            {:noreply, socket}
+
+          {:error, :not_found} ->
+            {:noreply, put_flash(socket, :error, "\"#{from}\" not found.")}
+
+          {:error, :already_exists} ->
+            {:noreply, put_flash(socket, :error, "\"#{to}\" already exists.")}
+
+          {:error, :invalid_name} ->
+            {:noreply, put_flash(socket, :error, "\"#{to}\" is not a valid folder name.")}
+
+          {:error, _reason} ->
+            {:noreply, put_flash(socket, :error, "Could not rename \"#{from}\".")}
+        end
+    end
+  end
+
+  def handle_event("delete_folder", %{"folder" => folder}, socket) do
+    case Content.delete_folder(folder) do
+      :ok ->
+        pages = Content.list_pages()
+
+        socket =
+          socket
+          |> assign(
+            pages: pages,
+            page_entries: page_entries(pages),
+            draft_pages: Content.list_draft_pages()
+          )
+          |> put_flash(:info, "\"#{folder}\" deleted.")
+
+        # If the open page was inside the deleted folder, navigate to /editor
+        socket =
+          if String.starts_with?(socket.assigns.page, folder <> "/") do
+            socket |> push_navigate(to: ~p"/editor")
+          else
+            socket
+          end
+
+        {:noreply, socket}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Could not delete \"#{folder}\".")}
+    end
+  end
+
+  def handle_event("begin_rename_folder", %{"folder" => folder}, socket) do
+    {:noreply, assign(socket, sidebar_rename_target: folder)}
+  end
+
+  def handle_event("cancel_rename_folder", _params, socket) do
+    {:noreply, assign(socket, sidebar_rename_target: nil)}
   end
 
   defp slugify(name) do
@@ -188,10 +275,11 @@ defmodule MantoWeb.EditorLive do
       # Filtering mode: ignore collapse, show matches + ancestors
       filter_lower = String.downcase(filter)
 
-      matches = Enum.filter(entries, fn {_depth, _kind, label} ->
-        String.contains?(String.downcase(label), filter_lower) or
-          String.contains?(String.downcase(Path.basename(label)), filter_lower)
-      end)
+      matches =
+        Enum.filter(entries, fn {_depth, _kind, label} ->
+          String.contains?(String.downcase(label), filter_lower) or
+            String.contains?(String.downcase(Path.basename(label)), filter_lower)
+        end)
 
       ancestor_labels =
         matches
@@ -206,14 +294,17 @@ defmodule MantoWeb.EditorLive do
   end
 
   defp page_entries(pages) do
-    folders =
+    folders_from_pages =
       pages
       |> Enum.flat_map(&ancestor_folders/1)
       |> Enum.uniq()
-      |> Enum.sort()
+
+    empty_folders = Content.list_folders() |> Enum.reject(&(&1 in folders_from_pages))
+
+    all_folders = (folders_from_pages ++ empty_folders) |> Enum.uniq() |> Enum.sort()
 
     entries =
-      for folder <- folders do
+      for folder <- all_folders do
         {page_depth(folder), :folder, folder}
       end ++
         for page <- pages do
@@ -266,6 +357,7 @@ defmodule MantoWeb.EditorLive do
   attr :page_titles, :map, required: true
   attr :filter, :string, default: ""
   attr :parent, :string, default: nil
+  attr :sidebar_rename_target, :string, default: nil
 
   def render_tree(assigns) do
     ~H"""
@@ -276,22 +368,68 @@ defmodule MantoWeb.EditorLive do
       >
         <% {_depth, kind, label} = entry %>
         <%= if kind == :folder do %>
-          <button
-            type="button"
-            phx-click="toggle_folder"
-            phx-value-folder={label}
-            class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          >
-            <.icon
-              name="hero-chevron-right-mini"
-              class={
-                "size-3 transition-transform" <>
-                  if(not MapSet.member?(@collapsed_folders, label), do: " rotate-90", else: "")
-              }
-            />
-            <.icon name="hero-folder-mini" class="size-4 shrink-0 text-gray-400" />
-            {Path.basename(label)}
-          </button>
+          <div class="flex items-center justify-between group">
+            <button
+              type="button"
+              phx-click="toggle_folder"
+              phx-value-folder={label}
+              class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <.icon
+                name="hero-chevron-right-mini"
+                class={
+                  "size-3 transition-transform" <>
+                    if(not MapSet.member?(@collapsed_folders, label), do: " rotate-90", else: "")
+                }
+              />
+              <.icon name="hero-folder-mini" class="size-4 shrink-0 text-gray-400" />
+              {Path.basename(label)}
+            </button>
+            <div class="hidden group-hover:flex items-center gap-1">
+              <button
+                type="button"
+                phx-click="begin_rename_folder"
+                phx-value-folder={label}
+                class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                title="Rename folder"
+              >
+                <.icon name="hero-pencil-square-mini" class="size-3" />
+              </button>
+              <button
+                type="button"
+                phx-click="delete_folder"
+                phx-value-folder={label}
+                phx-confirm={"Delete folder \"#{Path.basename(label)}\" and all its contents?"}
+                class="text-xs text-gray-400 hover:text-red-500"
+                title="Delete folder"
+              >
+                <.icon name="hero-trash-mini" class="size-3" />
+              </button>
+            </div>
+          </div>
+          <%= if @sidebar_rename_target == label do %>
+            <form phx-submit="rename_folder" class="ml-4 mt-1 flex gap-1">
+              <input
+                type="text"
+                name="name"
+                value={label}
+                class="min-w-0 flex-1 px-1 py-0.5 text-xs border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+              />
+              <button
+                type="submit"
+                class="px-1 py-0.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                phx-click="cancel_rename_folder"
+                class="px-1 py-0.5 text-xs text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </form>
+          <% end %>
           <.render_tree
             entries={@entries}
             collapsed_folders={@collapsed_folders}
@@ -300,6 +438,7 @@ defmodule MantoWeb.EditorLive do
             page_titles={@page_titles}
             filter={@filter}
             parent={label}
+            sidebar_rename_target={@sidebar_rename_target}
           />
         <% else %>
           <.link
