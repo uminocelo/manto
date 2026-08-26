@@ -12,10 +12,10 @@ defmodule MantoWeb.EditorLive do
        page_entries: page_entries(pages),
        page_titles: Content.list_titles(),
        draft_pages: Content.list_draft_pages(),
-       collapsed_folders: MapSet.new(),
-       filter: "",
-       sidebar_rename_target: nil,
-       new_in_folder: nil
+      collapsed_folders: MapSet.new(),
+      filter: "",
+      sidebar_rename_target: nil,
+      new_in_folder: nil
      )}
   end
 
@@ -710,10 +710,7 @@ defmodule MantoWeb.EditorLive do
                 <span class="truncate">
                   {Map.get(@page_titles, label, Path.basename(label))}
                 </span>
-                <span
-                  class="ml-1 hidden truncate text-xs text-gray-400 group-hover:inline"
-                  title={label}
-                >
+                <span class="ml-1 hidden truncate text-xs text-gray-400 group-hover:inline" title={label}>
                   {label}
                 </span>
                 <%= if label in @draft_pages do %>
