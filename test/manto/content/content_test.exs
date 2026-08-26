@@ -146,6 +146,91 @@ defmodule Manto.ContentTest do
     assert Content.broken_wiki_links("See [[#{page}]] and [[Nope-ABC]].", page) == ["Nope-ABC"]
   end
 
+  test "list_folders/0 returns empty directories" do
+    folder = "empty-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", folder])
+    File.mkdir_p!(path)
+    on_exit(fn -> File.rm_rf!(path) end)
+
+    assert folder in Content.list_folders()
+  end
+
+  test "list_folders/0 returns nested folders" do
+    folder = "nested-folder-#{System.unique_integer([:positive])}"
+    nested = "#{folder}/sub"
+    path = Path.join([:code.priv_dir(:manto), "content", nested])
+    File.mkdir_p!(path)
+    on_exit(fn -> File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    assert folder in Content.list_folders()
+    assert nested in Content.list_folders()
+  end
+
+  test "mkdir/1 creates a directory" do
+    folder = "created-dir-#{System.unique_integer([:positive])}"
+    on_exit(fn -> File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    assert :ok = Content.mkdir(folder)
+    assert folder in Content.list_folders()
+  end
+
+  test "mkdir/1 rejects invalid names" do
+    assert {:error, :invalid_name} = Content.mkdir("../escape")
+    assert {:error, :invalid_name} = Content.mkdir("/absolute")
+    assert {:error, :invalid_name} = Content.mkdir("")
+  end
+
+  test "list_folders/0 does not include .md files" do
+    folder = "has-files-#{System.unique_integer([:positive])}"
+    page = "#{folder}/something"
+    Content.save_page(page, "# Something")
+    on_exit(fn -> File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    # the folder shows up, but the page doesn't
+    assert folder in Content.list_folders()
+    refute page in Content.list_folders()
+  end
+
+  test "rename_folder/2 renames a folder and moves its contents" do
+    folder = "rename-folder-#{System.unique_integer([:positive])}"
+    to = "renamed-folder-#{System.unique_integer([:positive])}"
+    page = "#{folder}/page"
+    Content.save_page(page, "# Page")
+
+    on_exit(fn ->
+      File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder]))
+      File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", to]))
+    end)
+
+    assert :ok = Content.rename_folder(folder, to)
+    refute folder in Content.list_folders()
+    assert to in Content.list_folders()
+    assert "#{to}/page" in Content.list_pages()
+  end
+
+  test "rename_folder/2 guards against missing sources and existing targets" do
+    assert {:error, :not_found} = Content.rename_folder("nope-nonexistent", "target")
+    assert {:error, :invalid_name} = Content.rename_folder("", "target")
+    assert {:error, :invalid_name} = Content.rename_folder("valid", "../escape")
+  end
+
+  test "delete_folder/1 removes a folder and its contents" do
+    folder = "delete-folder-#{System.unique_integer([:positive])}"
+    Content.save_page("#{folder}/page", "# Page")
+    Content.save_page("#{folder}/sub/other", "# Other")
+
+    assert :ok = Content.delete_folder(folder)
+    refute folder in Content.list_folders()
+    refute "#{folder}/page" in Content.list_pages()
+    refute "#{folder}/sub/other" in Content.list_pages()
+  end
+
+  test "delete_folder/1 guards against missing and invalid names" do
+    assert {:error, :not_found} = Content.delete_folder("nope-nonexistent")
+    assert {:error, :invalid_name} = Content.delete_folder("")
+    assert {:error, :invalid_name} = Content.delete_folder("../escape")
+  end
+
   test "broken_wiki_links/3 treats draft targets as broken when publishing only" do
     draft = write_page(unique("Draft"), "---\ndraft: true\n---\n# Draft")
 

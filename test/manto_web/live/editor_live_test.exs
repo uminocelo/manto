@@ -380,6 +380,92 @@ defmodule MantoWeb.EditorLiveTest do
     refute html =~ "New in"
   end
 
+  # --- Issue 5.1: Empty folders ---
+
+  test "sidebar shows empty folders", %{conn: conn} do
+    folder = "empty-side-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", folder])
+    File.mkdir_p!(path)
+    on_exit(fn -> File.rm_rf!(path) end)
+
+    {:ok, view, _html} = live(conn, "/editor")
+
+    assert has_element?(view, "button[phx-click=toggle_folder]", folder)
+  end
+
+  test "sidebar shows nested empty folders", %{conn: conn} do
+    folder = "empty-nested-#{System.unique_integer([:positive])}"
+    nested = "#{folder}/sub"
+    path = Path.join([:code.priv_dir(:manto), "content", nested])
+    File.mkdir_p!(path)
+    on_exit(fn -> File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, _html} = live(conn, "/editor")
+
+    assert has_element?(view, "button[phx-click=toggle_folder]", folder)
+    assert has_element?(view, "button[phx-click=toggle_folder]", "sub")
+  end
+
+  # --- Issue 5.2: Folder rename/delete ---
+
+  test "renames a folder from the sidebar", %{conn: conn} do
+    folder = "rename-folder-#{System.unique_integer([:positive])}"
+    to = "renamed-folder-#{System.unique_integer([:positive])}"
+    page = "#{folder}/test-page"
+    Manto.Content.save_page(page, "# Test")
+
+    on_exit(fn ->
+      File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder]))
+      File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", to]))
+    end)
+
+    {:ok, view, _html} = live(conn, "/editor")
+
+    # click rename button
+    view
+    |> element("button[phx-click=begin_rename_folder][phx-value-folder='#{folder}']")
+    |> render_click()
+
+    # submit the rename form
+    view
+    |> form("form[phx-submit=rename_folder]", %{name: to})
+    |> render_submit()
+
+    refute has_element?(view, "button[phx-click=toggle_folder]", folder)
+    assert has_element?(view, "button[phx-click=toggle_folder]", to)
+  end
+
+  test "deletes a folder from the sidebar", %{conn: conn} do
+    folder = "delete-folder-#{System.unique_integer([:positive])}"
+    Manto.Content.save_page("#{folder}/page", "# Page")
+    on_exit(fn -> File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, _html} = live(conn, "/editor")
+
+    # click delete button
+    view
+    |> element("button[phx-click=delete_folder][phx-value-folder='#{folder}']")
+    |> render_click()
+
+    refute has_element?(view, "button[phx-click=toggle_folder]", folder)
+  end
+
+  test "navigates to /editor when the open page is inside a deleted folder", %{conn: conn} do
+    folder = "delete-open-#{System.unique_integer([:positive])}"
+    page = "#{folder}/my-page"
+    Manto.Content.save_page(page, "# My Page")
+    on_exit(fn -> File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    {:error, {:live_redirect, %{to: to}}} =
+      view
+      |> element("button[phx-click=delete_folder][phx-value-folder='#{folder}']")
+      |> render_click()
+
+    assert to == "/editor"
+  end
+
   # --- Issue 4.1: Page row menu ---
 
   test "sidebar page row has a menu button with dropdown", %{conn: conn} do
@@ -401,7 +487,9 @@ defmodule MantoWeb.EditorLiveTest do
     {:ok, view, _html} = live(conn, "/editor/#{page}")
 
     # click rename in sidebar menu
-    view |> element("button[phx-click=sidebar_rename][phx-value-page='#{page}']") |> render_click()
+    view
+    |> element("button[phx-click=sidebar_rename][phx-value-page='#{page}']")
+    |> render_click()
 
     # submit the rename form
     view
@@ -421,7 +509,9 @@ defmodule MantoWeb.EditorLiveTest do
     {:ok, view, _html} = live(conn, "/editor/#{page}")
 
     # click rename in sidebar menu
-    view |> element("button[phx-click=sidebar_rename][phx-value-page='#{page}']") |> render_click()
+    view
+    |> element("button[phx-click=sidebar_rename][phx-value-page='#{page}']")
+    |> render_click()
 
     # submit just a bare name — should stay in the folder
     view
@@ -454,6 +544,7 @@ defmodule MantoWeb.EditorLiveTest do
     path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
     File.write!(path, "# #{page}")
     copy_path = Path.join([:code.priv_dir(:manto), "content", "#{page}-copy.md"])
+
     on_exit(fn ->
       File.rm(path)
       File.rm(copy_path)
