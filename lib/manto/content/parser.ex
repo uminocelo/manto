@@ -22,11 +22,14 @@ defmodule Manto.Content.Parser do
   """
   @spec render_html(String.t(), keyword()) :: String.t()
   def render_html(markdown, opts \\ []) when is_binary(markdown) do
+    metadata = Keyword.get(opts, :metadata, %{})
+
     markdown
     |> rewrite_wiki_links(opts)
+    |> Manto.Plugin.run_markdown()
     |> MDEx.to_html(@mdex_opts)
     |> case do
-      {:ok, html} -> html
+      {:ok, html} -> Manto.Plugin.run_html(html, metadata)
       _ -> ""
     end
   end

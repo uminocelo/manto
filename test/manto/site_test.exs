@@ -12,7 +12,8 @@ defmodule Manto.SiteTest do
              "title" => "Manto",
              "description" => "A local-first Markdown site",
              "base_url" => "",
-             "vault_path" => "priv/content"
+             "vault_path" => "priv/content",
+             "plugins" => []
            }
   end
 
