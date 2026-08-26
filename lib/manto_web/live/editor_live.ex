@@ -14,7 +14,8 @@ defmodule MantoWeb.EditorLive do
        draft_pages: Content.list_draft_pages(),
        collapsed_folders: MapSet.new(),
        filter: "",
-       sidebar_rename_target: nil
+       sidebar_rename_target: nil,
+       new_in_folder: nil
      )}
   end
 
@@ -173,6 +174,167 @@ defmodule MantoWeb.EditorLive do
     end
   end
 
+  # --- M4 sidebar page row events ---
+
+  def handle_event("sidebar_open", %{"page" => page}, socket) do
+    {:noreply, push_navigate(socket, to: ~p"/editor/#{page}")}
+  end
+
+  def handle_event("sidebar_rename", %{"page" => page}, socket) do
+    {:noreply, assign(socket, :sidebar_rename_target, page)}
+  end
+
+  def handle_event("cancel_rename", _params, socket) do
+    {:noreply, assign(socket, sidebar_rename_target: nil, new_in_folder: nil)}
+  end
+
+  def handle_event("folder_new_page", %{"folder" => folder}, socket) do
+    {:noreply, assign(socket, :new_in_folder, folder)}
+  end
+
+  def handle_event("sidebar_rename_page", %{"page" => from, "name" => name}, socket) do
+    name = slugify(name)
+
+    # If the user gave a bare name (no slash), keep it in the same folder
+    to =
+      if String.contains?(name, "/") do
+        name
+      else
+        dir = Path.dirname(from)
+
+        if dir == "." do
+          name
+        else
+          "#{dir}/#{name}"
+        end
+      end
+
+    cond do
+      to == "" ->
+        {:noreply, assign(socket, :sidebar_rename_target, nil)}
+
+      to == from ->
+        {:noreply,
+         assign(socket, :sidebar_rename_target, nil)
+         |> put_flash(:error, "New name is the same as the current name.")}
+
+      not Content.valid_page_name?(to) ->
+        {:noreply,
+         assign(socket, :sidebar_rename_target, nil)
+         |> put_flash(:error, "\"#{to}\" is not a valid page name.")}
+
+      true ->
+        case Content.rename_page(from, to) do
+          :ok ->
+            pages = Content.list_pages()
+
+            socket =
+              socket
+              |> assign(
+                pages: pages,
+                page_entries: page_entries(pages),
+                draft_pages: Content.list_draft_pages(),
+                sidebar_rename_target: nil
+              )
+              |> put_flash(:info, "\"#{from}\" renamed to \"#{to}\".")
+
+            socket =
+              if socket.assigns.page == from do
+                push_navigate(socket, to: "/editor/#{to}")
+              else
+                socket
+              end
+
+            {:noreply, socket}
+
+          {:error, :already_exists} ->
+            {:noreply,
+             assign(socket, :sidebar_rename_target, nil)
+             |> put_flash(:error, "\"#{to}\" already exists.")}
+
+          {:error, _reason} ->
+            {:noreply,
+             assign(socket, :sidebar_rename_target, nil)
+             |> put_flash(:error, "Could not rename \"#{from}\".")}
+        end
+    end
+  end
+
+  def handle_event("sidebar_delete_page", %{"page" => page}, socket) do
+    case Content.delete_page(page) do
+      :ok ->
+        pages = Content.list_pages()
+
+        socket =
+          socket
+          |> assign(
+            pages: pages,
+            page_entries: page_entries(pages),
+            draft_pages: Content.list_draft_pages()
+          )
+          |> put_flash(:info, "\"#{page}\" deleted.")
+
+        socket =
+          if socket.assigns.page == page do
+            push_navigate(socket, to: ~p"/editor")
+          else
+            socket
+          end
+
+        {:noreply, socket}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Could not delete \"#{page}\".")}
+    end
+  end
+
+  def handle_event("duplicate_page", %{"page" => page}, socket) do
+    body = Content.get_page(page) || ""
+    new_slug = unique_slug(page, socket.assigns.pages)
+    Content.save_page(new_slug, body)
+    pages = Content.list_pages()
+
+    socket =
+      socket
+      |> assign(
+        pages: pages,
+        page_entries: page_entries(pages),
+        draft_pages: Content.list_draft_pages()
+      )
+      |> put_flash(:info, "\"#{page}\" duplicated as \"#{new_slug}\".")
+      |> push_navigate(to: "/editor/#{new_slug}")
+
+    {:noreply, socket}
+  end
+
+  def handle_event("copy_wiki_link", %{"page" => page}, socket) do
+    {:noreply, put_flash(socket, :info, "[[#{page}]] copied to clipboard.")}
+  end
+
+  def handle_event("foldered_new_page", %{"folder" => folder, "name" => name}, socket) do
+    slug = slugify(name)
+    full_slug = "#{folder}/#{slug}"
+
+    cond do
+      slug == "" ->
+        {:noreply, socket}
+
+      full_slug in socket.assigns.pages ->
+        {:noreply, put_flash(socket, :error, "\"#{full_slug}\" already exists.")}
+
+      not Content.valid_page_name?(full_slug) ->
+        {:noreply, put_flash(socket, :error, "\"#{full_slug}\" is not a valid page name.")}
+
+      true ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "\"#{full_slug}\" created.")
+         |> push_navigate(to: "/editor/#{full_slug}")}
+    end
+  end
+
+  # --- M5 folder rename/delete events ---
+
   def handle_event("rename_folder", %{"name" => name}, socket) do
     from = socket.assigns.sidebar_rename_target
 
@@ -263,6 +425,8 @@ defmodule MantoWeb.EditorLive do
     |> String.trim("/")
   end
 
+  defp slug_id(label), do: String.replace(label, "/", "-")
+
   defp visible_entries(entries, collapsed_folders, filter) do
     if filter == "" do
       # Normal behavior: respect collapse
@@ -343,6 +507,25 @@ defmodule MantoWeb.EditorLive do
     |> Enum.slice(0..-2//1)
   end
 
+  defp unique_slug(base, existing_pages) do
+    candidate = base <> "-copy"
+
+    if candidate in existing_pages do
+      Stream.iterate(1, &(&1 + 1))
+      |> Enum.reduce_while(nil, fn n, _ ->
+        slug = "#{base}-copy-#{n}"
+
+        if slug in existing_pages do
+          {:cont, nil}
+        else
+          {:halt, slug}
+        end
+      end)
+    else
+      candidate
+    end
+  end
+
   defp page_depth(page) do
     case Path.dirname(page) do
       "." -> 0
@@ -358,6 +541,7 @@ defmodule MantoWeb.EditorLive do
   attr :filter, :string, default: ""
   attr :parent, :string, default: nil
   attr :sidebar_rename_target, :string, default: nil
+  attr :new_in_folder, :string, default: nil
 
   def render_tree(assigns) do
     ~H"""
@@ -368,67 +552,107 @@ defmodule MantoWeb.EditorLive do
       >
         <% {_depth, kind, label} = entry %>
         <%= if kind == :folder do %>
-          <div class="flex items-center justify-between group">
-            <button
-              type="button"
-              phx-click="toggle_folder"
+          <%= if @new_in_folder == label do %>
+            <form
+              phx-submit="foldered_new_page"
               phx-value-folder={label}
-              class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              class="flex items-center gap-1 px-2 py-1"
             >
-              <.icon
-                name="hero-chevron-right-mini"
-                class={
-                  "size-3 transition-transform" <>
-                    if(not MapSet.member?(@collapsed_folders, label), do: " rotate-90", else: "")
-                }
-              />
-              <.icon name="hero-folder-mini" class="size-4 shrink-0 text-gray-400" />
-              {Path.basename(label)}
-            </button>
-            <div class="hidden group-hover:flex items-center gap-1">
-              <button
-                type="button"
-                phx-click="begin_rename_folder"
-                phx-value-folder={label}
-                class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                title="Rename folder"
-              >
-                <.icon name="hero-pencil-square-mini" class="size-3" />
-              </button>
-              <button
-                type="button"
-                phx-click="delete_folder"
-                phx-value-folder={label}
-                phx-confirm={"Delete folder \"#{Path.basename(label)}\" and all its contents?"}
-                class="text-xs text-gray-400 hover:text-red-500"
-                title="Delete folder"
-              >
-                <.icon name="hero-trash-mini" class="size-3" />
-              </button>
-            </div>
-          </div>
-          <%= if @sidebar_rename_target == label do %>
-            <form phx-submit="rename_folder" class="ml-4 mt-1 flex gap-1">
               <input
                 type="text"
                 name="name"
-                value={label}
-                class="min-w-0 flex-1 px-1 py-0.5 text-xs border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+                placeholder={"New in #{Path.basename(label)}/..."}
+                class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md"
+                phx-mounted={JS.focus()}
               />
               <button
                 type="submit"
-                class="px-1 py-0.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                class="px-2 py-1 text-xs bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
               >
-                Rename
+                Add
               </button>
               <button
                 type="button"
-                phx-click="cancel_rename_folder"
-                class="px-1 py-0.5 text-xs text-gray-500 hover:text-gray-700"
+                phx-click="cancel_rename"
+                class="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
               >
                 Cancel
               </button>
             </form>
+          <% else %>
+            <div class="flex items-center justify-between group">
+              <div class="flex items-center">
+                <button
+                  type="button"
+                  phx-click="toggle_folder"
+                  phx-value-folder={label}
+                  class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 py-0.5"
+                >
+                  <.icon
+                    name="hero-chevron-right-mini"
+                    class={
+                      "size-3 transition-transform" <>
+                        if(not MapSet.member?(@collapsed_folders, label), do: " rotate-90", else: "")
+                    }
+                  />
+                  <.icon name="hero-folder-mini" class="size-4 shrink-0 text-gray-400" />
+                  {Path.basename(label)}
+                </button>
+                <button
+                  type="button"
+                  phx-click="folder_new_page"
+                  phx-value-folder={label}
+                  class="ml-1 opacity-0 group-hover:opacity-100 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  title={"New page in #{label}"}
+                >
+                  <.icon name="hero-plus-mini" class="size-4" />
+                </button>
+              </div>
+              <div class="hidden group-hover:flex items-center gap-1">
+                <button
+                  type="button"
+                  phx-click="begin_rename_folder"
+                  phx-value-folder={label}
+                  class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  title="Rename folder"
+                >
+                  <.icon name="hero-pencil-square-mini" class="size-3" />
+                </button>
+                <button
+                  type="button"
+                  phx-click="delete_folder"
+                  phx-value-folder={label}
+                  phx-confirm={"Delete folder \"#{Path.basename(label)}\" and all its contents?"}
+                  class="text-xs text-gray-400 hover:text-red-500"
+                  title="Delete folder"
+                >
+                  <.icon name="hero-trash-mini" class="size-3" />
+                </button>
+              </div>
+            </div>
+            <%= if @sidebar_rename_target == label do %>
+              <form phx-submit="rename_folder" class="ml-4 mt-1 flex gap-1">
+                <input
+                  type="text"
+                  name="name"
+                  value={label}
+                  class="min-w-0 flex-1 px-1 py-0.5 text-xs border rounded bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+                />
+                <button
+                  type="submit"
+                  class="px-1 py-0.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                >
+                  Rename
+                </button>
+                <button
+                  type="button"
+                  phx-click="cancel_rename_folder"
+                  class="px-1 py-0.5 text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Cancel
+                </button>
+              </form>
+            <% end %>
           <% end %>
           <.render_tree
             entries={@entries}
@@ -437,34 +661,116 @@ defmodule MantoWeb.EditorLive do
             draft_pages={@draft_pages}
             page_titles={@page_titles}
             filter={@filter}
-            parent={label}
             sidebar_rename_target={@sidebar_rename_target}
+            new_in_folder={@new_in_folder}
+            parent={label}
           />
         <% else %>
-          <.link
-            navigate={"/editor/#{label}"}
-            id={"page-link-#{String.replace(label, "/", "-")}"}
-            class={[
-              "flex min-w-0 items-center rounded px-2 py-1 text-sm group",
-              if(label == @current_page,
-                do: "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200",
-                else: "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              )
-            ]}
-          >
-            <.icon name="hero-document-text-mini" class="size-4 shrink-0 text-gray-400" />
-            <span class="truncate">
-              {Map.get(@page_titles, label, Path.basename(label))}
-            </span>
-            <span class="ml-1 hidden truncate text-xs text-gray-400 group-hover:inline" title={label}>
-              {label}
-            </span>
-            <%= if label in @draft_pages do %>
-              <span class="ml-1 text-xs font-medium uppercase text-amber-600 dark:text-amber-400">
-                draft
-              </span>
-            <% end %>
-          </.link>
+          <%= if @sidebar_rename_target == label do %>
+            <form
+              phx-submit="sidebar_rename_page"
+              phx-value-page={label}
+              class="flex items-center gap-1 px-2 py-1"
+            >
+              <input
+                type="text"
+                name="name"
+                value={Path.basename(label)}
+                class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md"
+                phx-mounted={JS.focus()}
+              />
+              <button
+                type="submit"
+                class="px-2 py-1 text-xs bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                phx-click="cancel_rename"
+                class="px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+            </form>
+          <% else %>
+            <div class="flex items-center group">
+              <.link
+                navigate={"/editor/#{label}"}
+                id={"page-link-#{slug_id(label)}"}
+                class={[
+                  "flex min-w-0 flex-1 items-center rounded-l px-1.5 py-0.5 text-sm",
+                  if(label == @current_page,
+                    do: "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200",
+                    else: "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  )
+                ]}
+              >
+                <.icon name="hero-document-text-mini" class="size-4 shrink-0 text-gray-400" />
+                <span class="truncate">
+                  {Map.get(@page_titles, label, Path.basename(label))}
+                </span>
+                <span
+                  class="ml-1 hidden truncate text-xs text-gray-400 group-hover:inline"
+                  title={label}
+                >
+                  {label}
+                </span>
+                <%= if label in @draft_pages do %>
+                  <span class="ml-1 text-xs font-medium uppercase text-amber-600 dark:text-amber-400">
+                    draft
+                  </span>
+                <% end %>
+              </.link>
+
+              <div class={"dropdown dropdown-end #{if(label == @current_page, do: "", else: "opacity-0 group-hover:opacity-100")}"}>
+                <button
+                  type="button"
+                  id={"page-menu-btn-#{slug_id(label)}"}
+                  class="px-1 py-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-r"
+                  tabindex="0"
+                  role="button"
+                >
+                  <.icon name="hero-ellipsis-horizontal-mini" class="size-4" />
+                </button>
+                <ul
+                  class="dropdown-content menu menu-sm rounded-box z-[1] w-44 p-2 shadow bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                  tabindex="0"
+                >
+                  <li>
+                    <button type="button" phx-click="sidebar_open" phx-value-page={label}>
+                      Open
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" phx-click="sidebar_rename" phx-value-page={label}>
+                      Rename
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      phx-click="sidebar_delete_page"
+                      phx-value-page={label}
+                      phx-confirm={"Delete \"#{label}\"?"}
+                    >
+                      Delete
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" phx-click="duplicate_page" phx-value-page={label}>
+                      Duplicate
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" phx-click="copy_wiki_link" phx-value-page={label}>
+                      Copy wiki link
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          <% end %>
         <% end %>
       </li>
     </ul>
