@@ -596,4 +596,118 @@ defmodule MantoWeb.EditorLiveTest do
     {:error, {:live_redirect, %{to: to}}} = result
     assert to == "/editor/#{folder}/NewPage"
   end
+
+  # --- Issue 6.2: Drag-and-drop move ---
+
+  test "move_page event moves a page into a folder", %{conn: conn} do
+    folder = "movetgt-#{System.unique_integer([:positive])}"
+    page = "move-src-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    File.write!(path, "# #{page}")
+    File.mkdir_p!(Path.join([:code.priv_dir(:manto), "content", folder]))
+
+    on_exit(fn ->
+      File.rm(path)
+      File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder]))
+    end)
+
+    {:ok, view, _html} = live(conn, "/editor")
+
+    html =
+      render_hook(view, "move_page", %{"page" => page, "target_folder" => folder})
+
+    assert html =~ "moved"
+    assert File.exists?(Path.join([:code.priv_dir(:manto), "content", "#{folder}/#{page}.md"]))
+    refute File.exists?(path)
+  end
+
+  test "move_page event navigates to the new path when the open page is moved", %{conn: conn} do
+    folder = "movnav-#{System.unique_integer([:positive])}"
+    page = "move-nav-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    File.write!(path, "# #{page}")
+    File.mkdir_p!(Path.join([:code.priv_dir(:manto), "content", folder]))
+
+    on_exit(fn ->
+      File.rm(path)
+      File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder]))
+    end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    result =
+      render_hook(view, "move_page", %{"page" => page, "target_folder" => folder})
+
+    assert {:error, {:live_redirect, %{to: to}}} = result
+    assert to == "/editor/#{folder}/#{page}"
+    assert File.exists?(Path.join([:code.priv_dir(:manto), "content", "#{folder}/#{page}.md"]))
+    refute File.exists?(path)
+  end
+
+  test "move_page event shows conflict flash when target already exists", %{conn: conn} do
+    folder = "movconf-#{System.unique_integer([:positive])}"
+    page = "move-conf-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    File.write!(path, "# #{page}")
+    File.mkdir_p!(Path.join([:code.priv_dir(:manto), "content", folder]))
+    existing = Path.join([:code.priv_dir(:manto), "content", "#{folder}/#{page}.md"])
+    File.write!(existing, "# Existing")
+
+    on_exit(fn ->
+      File.rm(path)
+      File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", folder]))
+    end)
+
+    {:ok, view, _html} = live(conn, "/editor")
+
+    html =
+      render_hook(view, "move_page", %{"page" => page, "target_folder" => folder})
+
+    assert html =~ "already exists"
+  end
+
+  test "move_folder event moves a folder into another folder", %{conn: conn} do
+    parent = "movpar-#{System.unique_integer([:positive])}"
+    child = "movchild-#{System.unique_integer([:positive])}"
+    page_slug = "#{child}/a-page"
+    Manto.Content.save_page(page_slug, "# A Page")
+    File.mkdir_p!(Path.join([:code.priv_dir(:manto), "content", parent]))
+
+    on_exit(fn ->
+      File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", child]))
+      File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", parent]))
+    end)
+
+    {:ok, view, _html} = live(conn, "/editor")
+
+    html =
+      render_hook(view, "move_folder", %{"folder" => child, "target_folder" => parent})
+
+    assert html =~ "moved"
+    assert File.dir?(Path.join([:code.priv_dir(:manto), "content", "#{parent}/#{child}"]))
+
+    assert File.exists?(
+             Path.join([:code.priv_dir(:manto), "content", "#{parent}/#{child}/a-page.md"])
+           )
+  end
+
+  test "move_folder event shows conflict flash when target already exists", %{conn: conn} do
+    parent = "mvconfpar-#{System.unique_integer([:positive])}"
+    child = "mvconfchild-#{System.unique_integer([:positive])}"
+    Manto.Content.mkdir(parent)
+    Manto.Content.mkdir(child)
+    Manto.Content.mkdir("#{parent}/#{child}")
+
+    on_exit(fn ->
+      File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", parent]))
+      File.rm_rf!(Path.join([:code.priv_dir(:manto), "content", child]))
+    end)
+
+    {:ok, view, _html} = live(conn, "/editor")
+
+    html =
+      render_hook(view, "move_folder", %{"folder" => child, "target_folder" => parent})
+
+    assert html =~ "already exists"
+  end
 end
