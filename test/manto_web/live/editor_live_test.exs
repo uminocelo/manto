@@ -379,4 +379,130 @@ defmodule MantoWeb.EditorLiveTest do
     # root page — no folder prefix in placeholder
     refute html =~ "New in"
   end
+
+  # --- Issue 4.1: Page row menu ---
+
+  test "sidebar page row has a menu button with dropdown", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/editor/welcome")
+
+    assert has_element?(view, "#page-menu-btn-welcome")
+  end
+
+  test "sidebar rename via dropdown renames and navigates when on the renamed page", %{conn: conn} do
+    page = "Side-Rename-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    File.write!(path, "# #{page}")
+    on_exit(fn -> File.rm(path) end)
+
+    new_name = "Side-Renamed-#{System.unique_integer([:positive])}"
+    new_path = Path.join([:code.priv_dir(:manto), "content", "#{new_name}.md"])
+    on_exit(fn -> File.rm(new_path) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    # click rename in sidebar menu
+    view |> element("button[phx-click=sidebar_rename][phx-value-page='#{page}']") |> render_click()
+
+    # submit the rename form
+    view
+    |> form("form[phx-submit=sidebar_rename_page]", %{name: new_name})
+    |> render_submit()
+
+    refute File.exists?(path)
+    assert File.exists?(new_path)
+  end
+
+  test "sidebar rename stays in folder for nested pages", %{conn: conn} do
+    folder = "sideren-#{System.unique_integer([:positive])}"
+    page = "#{folder}/Original"
+    Manto.Content.save_page(page, "# Original")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    # click rename in sidebar menu
+    view |> element("button[phx-click=sidebar_rename][phx-value-page='#{page}']") |> render_click()
+
+    # submit just a bare name — should stay in the folder
+    view
+    |> form("form[phx-submit=sidebar_rename_page]", %{name: "Moved"})
+    |> render_submit()
+
+    assert File.exists?(Path.join([:code.priv_dir(:manto), "content", "#{folder}/Moved.md"]))
+    refute File.exists?(Path.join([:code.priv_dir(:manto), "content", "#{page}.md"]))
+  end
+
+  test "sidebar delete via dropdown removes the page", %{conn: conn} do
+    page = "Side-Delete-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    File.write!(path, "# #{page}")
+    on_exit(fn -> File.rm(path) end)
+
+    {:ok, view, _html} = live(conn, "/editor/welcome")
+
+    html =
+      view
+      |> element("button[phx-click=sidebar_delete_page][phx-value-page='#{page}']")
+      |> render_click()
+
+    assert html =~ "deleted"
+    refute File.exists?(path)
+  end
+
+  test "sidebar duplicate creates a copy and navigates to it", %{conn: conn} do
+    page = "Side-Dup-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    File.write!(path, "# #{page}")
+    copy_path = Path.join([:code.priv_dir(:manto), "content", "#{page}-copy.md"])
+    on_exit(fn ->
+      File.rm(path)
+      File.rm(copy_path)
+    end)
+
+    {:ok, view, _html} = live(conn, "/editor/welcome")
+
+    {:error, {:live_redirect, %{to: to}}} =
+      view
+      |> element("button[phx-click=duplicate_page][phx-value-page='#{page}']")
+      |> render_click()
+
+    assert to == "/editor/#{page}-copy"
+    assert File.exists?(path)
+    assert File.exists?(copy_path)
+  end
+
+  test "sidebar copy wiki link shows a flash", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/editor/welcome")
+
+    html =
+      view
+      |> element("button[phx-click=copy_wiki_link][phx-value-page=welcome]")
+      |> render_click()
+
+    assert html =~ "[[welcome]]"
+  end
+
+  # --- Issue 4.2: Folder "new page here" ---
+
+  test "folder row has a new button that creates a page with the folder prefix", %{conn: conn} do
+    folder = "fknew-#{System.unique_integer([:positive])}"
+    Manto.Content.save_page("#{folder}/Existing", "# Existing")
+    on_exit(fn -> File.rm_rf(Path.join([:code.priv_dir(:manto), "content", folder])) end)
+
+    {:ok, view, _html} = live(conn, "/editor/welcome")
+
+    # click the + button to reveal the inline form
+    view
+    |> element("button[phx-click=folder_new_page][phx-value-folder='#{folder}']")
+    |> render_click()
+
+    # submit the inline form
+    result =
+      view
+      |> form("form[phx-submit=foldered_new_page]", %{name: "NewPage"})
+      |> render_submit()
+
+    {:error, {:live_redirect, %{to: to}}} = result
+    assert to == "/editor/#{folder}/NewPage"
+  end
 end
