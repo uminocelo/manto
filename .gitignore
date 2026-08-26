@@ -44,3 +44,4 @@ assets/node_modules/
 
 # Manto
 manto.json
+.plan/
