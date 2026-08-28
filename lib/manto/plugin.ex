@@ -13,6 +13,45 @@ defmodule Manto.Plugin do
 
   Both callbacks are optional — a plugin only needs to implement the hook(s)
   it cares about.
+
+  ## Usage
+
+  Enable plugins in `manto.json` by adding their names to the `"plugins"` list:
+
+      {
+        "title": "My Site",
+        "plugins": ["toc", "header_image"]
+      }
+
+  Or via the Settings page at `/` in the editor UI.
+
+  ## Built-in plugins
+
+  | Name | Module | Description |
+  | ---- | ------ | ----------- |
+  | `toc` | `Manto.Plugins.TOC` | Auto-generates a table of contents from headings |
+  | `header_image` | `Manto.Plugins.HeaderImage` | Injects a banner image from front matter |
+
+  ## Writing a custom plugin
+
+  Create a module implementing `@behaviour Manto.Plugin`:
+
+      defmodule MyPlugin do
+        @behaviour Manto.Plugin
+
+        @impl true
+        def transform_markdown(markdown) do
+          # modify raw markdown, return the result
+        end
+
+        @impl true
+        def transform_html(html, _metadata) do
+          # modify rendered html, return the result
+        end
+      end
+
+  Then register it in the `@registry` list in this module and add the
+  corresponding entry to the `@defaults` plugins list.
   """
 
   @doc "Transform raw Markdown before rendering. Return the (possibly modified) Markdown string."
@@ -61,7 +100,9 @@ defmodule Manto.Plugin do
   @spec run_markdown(String.t()) :: String.t()
   def run_markdown(body) when is_binary(body) do
     Enum.reduce(enabled_plugins(), body, fn mod, acc ->
-      if function_exported?(mod, :transform_markdown, 1) do
+      Code.ensure_loaded(mod)
+
+      if :erlang.function_exported(mod, :transform_markdown, 1) do
         mod.transform_markdown(acc)
       else
         acc
@@ -77,7 +118,9 @@ defmodule Manto.Plugin do
   @spec run_html(String.t(), map()) :: String.t()
   def run_html(html, metadata \\ %{}) when is_binary(html) and is_map(metadata) do
     Enum.reduce(enabled_plugins(), html, fn mod, acc ->
-      if function_exported?(mod, :transform_html, 2) do
+      Code.ensure_loaded(mod)
+
+      if :erlang.function_exported(mod, :transform_html, 2) do
         mod.transform_html(acc, metadata)
       else
         acc
