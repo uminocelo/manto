@@ -3,11 +3,10 @@ defmodule Manto.Plugins.TOC do
   Table of Contents plugin for Manto.
 
   Scans Markdown headings (`# Heading`) and injects a nested Markdown TOC
-  with anchor links. The TOC is inserted:
+  with anchor links at the top of the page. The TOC is inserted:
 
   1. At an explicit `<!-- toc -->` comment if present
-  2. After the first heading otherwise
-  3. At the top of the document if there are no headings
+  2. Before the first heading otherwise (at the very top of the content)
 
   ## Usage
 
@@ -20,7 +19,7 @@ defmodule Manto.Plugins.TOC do
 
   ### Controlling placement
 
-  - **No `<!-- toc -->`**: TOC is auto-inserted after the first heading
+  - **No `<!-- toc -->`**: TOC is auto-inserted at the top of the page
   - **With `<!-- toc -->`**: TOC replaces the comment, giving you control over position
 
   Example Markdown:

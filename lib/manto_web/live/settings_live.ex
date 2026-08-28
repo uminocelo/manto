@@ -4,6 +4,7 @@ defmodule MantoWeb.SettingsLive do
   alias Manto.Site
 
   @editable_fields ~w(title description base_url vault_path)
+  alias Manto.Plugin
 
   def mount(_params, _session, socket) do
     {:ok, assign_vault(socket, Site.config())}
@@ -35,8 +36,14 @@ defmodule MantoWeb.SettingsLive do
       |> maybe_default("title", Site.config()["title"])
       |> maybe_default("vault_path", Site.config()["vault_path"])
 
+    plugins =
+      params
+      |> Map.get("plugins", [])
+      |> List.wrap()
+      |> Enum.reject(&(&1 == ""))
+
     case validate_vault_path(settings["vault_path"]) do
-      :ok -> {:ok, settings}
+      :ok -> {:ok, Map.put(settings, "plugins", plugins)}
       {:error, message} -> {:error, message}
     end
   end
@@ -70,7 +77,9 @@ defmodule MantoWeb.SettingsLive do
       base_url: config["base_url"],
       vault_path: config["vault_path"],
       vault_abs_path: Path.expand(config["vault_path"]),
-      page_count: length(Content.list_pages())
+      page_count: length(Content.list_pages()),
+      available_plugins: Plugin.available_plugins(),
+      plugins: config["plugins"] || []
     )
   end
 end
