@@ -48,7 +48,10 @@ defmodule Manto.Plugins.HeaderImageTest do
 
     result = HeaderImage.transform_html(html, metadata)
 
-    assert String.starts_with?(result, ~s(<div class="header-image-banner" style="max-width:100%;">))
+    assert String.starts_with?(
+             result,
+             ~s(<div class="header-image-banner" style="max-width:100%;">)
+           )
   end
 
   test "rewrites relative image paths to /vault-images/" do
