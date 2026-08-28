@@ -29,7 +29,8 @@ defmodule Manto.PluginTest do
     Application.put_env(:manto, :config_path, path)
 
     on_exit(fn ->
-      if previous, do: Application.put_env(:manto, :config_path, previous),
+      if previous,
+        do: Application.put_env(:manto, :config_path, previous),
         else: Application.delete_env(:manto, :config_path)
     end)
 

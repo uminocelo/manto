@@ -64,9 +64,11 @@ defmodule Mix.Tasks.Manto.Build do
         body = Content.get_page(name)
         metadata = Parser.metadata(body)
         prefix = relative_prefix(name)
+
         html =
           Parser.render_html(body, metadata: metadata, link_prefix: prefix, link_suffix: ".html")
           |> rewrite_vault_image_paths(prefix)
+
         title = Map.get(metadata, "title", Path.basename(name))
         tags = metadata |> Map.get("tags", []) |> List.wrap()
         broken = Content.broken_wiki_links(body, name, include_drafts: false)

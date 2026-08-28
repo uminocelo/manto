@@ -110,7 +110,11 @@ defmodule MantoWeb.SettingsLiveTest do
 
   test "enabling a plugin via form submit persists it to manto.json", %{conn: conn} do
     vault = unique_vault()
-    on_exit(fn -> File.rm(Site.config_path()); File.rm_rf(vault) end)
+
+    on_exit(fn ->
+      File.rm(Site.config_path())
+      File.rm_rf(vault)
+    end)
 
     {:ok, view, _html} = live(conn, "/")
 
@@ -130,7 +134,11 @@ defmodule MantoWeb.SettingsLiveTest do
 
   test "disabling a plugin removes it from manto.json", %{conn: conn} do
     vault = unique_vault()
-    on_exit(fn -> File.rm(Site.config_path()); File.rm_rf(vault) end)
+
+    on_exit(fn ->
+      File.rm(Site.config_path())
+      File.rm_rf(vault)
+    end)
 
     Site.save(%{"plugins" => ["toc", "header_image"], "vault_path" => vault})
 
