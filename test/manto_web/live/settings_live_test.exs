@@ -96,4 +96,57 @@ defmodule MantoWeb.SettingsLiveTest do
     assert html =~ "Settings saved."
     assert File.dir?(vault)
   end
+
+  test "renders a checkbox for each available plugin", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert html =~ "Plugins"
+    assert html =~ "Table of Contents"
+    assert html =~ "Header Image Banner"
+
+    assert html =~ ~s(name="plugins[]" value="toc")
+    assert html =~ ~s(name="plugins[]" value="header_image")
+  end
+
+  test "enabling a plugin via form submit persists it to manto.json", %{conn: conn} do
+    vault = unique_vault()
+    on_exit(fn -> File.rm(Site.config_path()); File.rm_rf(vault) end)
+
+    {:ok, view, _html} = live(conn, "/")
+
+    view
+    |> form("#settings-form", %{
+      vault_path: vault,
+      title: "Plugin Site",
+      description: "Testing",
+      base_url: "",
+      plugins: ["toc"]
+    })
+    |> render_submit()
+
+    config = Site.config()
+    assert config["plugins"] == ["toc"]
+  end
+
+  test "disabling a plugin removes it from manto.json", %{conn: conn} do
+    vault = unique_vault()
+    on_exit(fn -> File.rm(Site.config_path()); File.rm_rf(vault) end)
+
+    Site.save(%{"plugins" => ["toc", "header_image"], "vault_path" => vault})
+
+    {:ok, view, _html} = live(conn, "/")
+
+    view
+    |> form("#settings-form", %{
+      vault_path: vault,
+      title: "Plugin Site",
+      description: "Testing",
+      base_url: "",
+      plugins: []
+    })
+    |> render_submit()
+
+    config = Site.config()
+    assert config["plugins"] == []
+  end
 end
