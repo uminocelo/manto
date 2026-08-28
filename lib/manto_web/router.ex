@@ -28,6 +28,9 @@ defmodule MantoWeb.Router do
   #   pipe_through :api
   # end
 
+  # Serve images from the vault so the editor preview can display them.
+  forward "/vault-images", MantoWeb.VaultImagesPlug
+
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:manto, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put

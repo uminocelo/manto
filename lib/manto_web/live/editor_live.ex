@@ -891,7 +891,7 @@ defmodule MantoWeb.EditorLive do
     assign(socket,
       page: page,
       body: body,
-      html: Parser.render_html(body),
+      html: Parser.render_html(body, metadata: metadata),
       metadata: metadata,
       draft: Parser.draft?(metadata),
       broken_links: Content.broken_wiki_links(body, page),
