@@ -43,7 +43,7 @@ defmodule Manto.Plugins.HeaderImage do
     src = rewrite_image_path(path)
 
     banner =
-      ~s(<div class="header-image-banner"><img src="#{src}" alt="header image" /></div>)
+      ~s(<div class="header-image-banner" style="max-width:100%;"><img src="#{src}" alt="header image" style="max-width:100%;height:auto;border-radius:8px;display:block;" /></div>)
 
     case Regex.run(~r/<h1[^>]*>/, html) do
       [tag | _] ->

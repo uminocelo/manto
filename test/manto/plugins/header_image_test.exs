@@ -11,6 +11,7 @@ defmodule Manto.Plugins.HeaderImageTest do
     assert result =~ ~s(class="header-image-banner")
     assert result =~ ~s(src="/images/hero.png")
     assert result =~ ~s(alt="header image")
+    assert result =~ ~s(max-width:100%)
   end
 
   test "no injection when header_image is absent" do
@@ -47,7 +48,10 @@ defmodule Manto.Plugins.HeaderImageTest do
 
     result = HeaderImage.transform_html(html, metadata)
 
-    assert String.starts_with?(result, ~s(<div class="header-image-banner">))
+    assert String.starts_with?(
+             result,
+             ~s(<div class="header-image-banner" style="max-width:100%;">)
+           )
   end
 
   test "rewrites relative image paths to /vault-images/" do
