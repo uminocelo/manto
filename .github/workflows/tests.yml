@@ -28,6 +28,9 @@ jobs:
       - name: Compile (warnings as errors)
         run: mix compile --warning-as-errors
 
+      - name: Seed content
+        run: mix manto.init
+
       - name: Check formatting
         run: mix format --check-formatted
 
