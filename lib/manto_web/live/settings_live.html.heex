@@ -102,6 +102,33 @@
       />
     </div>
 
+    <section
+      id="plugins-section"
+      class="rounded-box border border-base-300 bg-base-100 p-4"
+    >
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        Plugins
+      </h2>
+      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        Enable or disable content transformation plugins.
+      </p>
+      <div class="mt-3 space-y-2">
+        <input type="hidden" name="plugins[]" value="" />
+        <%= for {name, _mod, label} <- @available_plugins do %>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="plugins[]"
+              value={name}
+              checked={name in @plugins}
+              class="checkbox checkbox-sm"
+            />
+            <span class="text-sm text-gray-700 dark:text-gray-200">{label}</span>
+          </label>
+        <% end %>
+      </div>
+    </section>
+
     <div class="flex items-center gap-3">
       <button
         type="submit"
