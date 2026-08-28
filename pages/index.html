@@ -86,12 +86,44 @@
           <p>Write in Markdown, preview rendered HTML side by side. Wiki links, tags, and GFM tables all work out of the box.</p>
         </div>
         <div class="card">
+          <h3>Folders &amp; drag-and-drop</h3>
+          <p>Organize pages in nested folders. Drag pages between folders, collapse the tree, and filter by title — all in a resizable sidebar.</p>
+        </div>
+        <div class="card">
+          <h3>Autosave &amp; unsaved-change guard</h3>
+          <p>Editor content is autosaved to <code>localStorage</code> per page. Navigate away safely — Manto warns you about unsaved changes.</p>
+        </div>
+        <div class="card">
+          <h3>Drafts &amp; publishing</h3>
+          <p>Mark a page <code>draft: true</code> or <code>published: false</code> and it's hidden from static builds. The sidebar flags drafts at a glance.</p>
+        </div>
+        <div class="card">
+          <h3>Plugin pipeline</h3>
+          <p>Transform Markdown before rendering or HTML after. Ships with a Table-of-Contents plugin and a header-image plugin — write your own via <code>@behaviour Manto.Plugin</code>.</p>
+        </div>
+        <div class="card">
+          <h3>Dark mode</h3>
+          <p>Light and dark themes driven by <code>data-theme</code> on <code>&lt;html&gt;</code>, persisted to <code>localStorage</code> with no flash-of-wrong-theme on load.</p>
+        </div>
+        <div class="card">
+          <h3>Installable PWA</h3>
+          <p>A service worker caches the app shell for offline use, and a web manifest makes Manto installable as a standalone app.</p>
+        </div>
+        <div class="card">
+          <h3>Vault image serving</h3>
+          <p>Drop PNG, JPG, SVG, or WebP files into your vault and reference them in Markdown — <code>/vault-images/*</code> serves them in the editor preview.</p>
+        </div>
+        <div class="card">
           <h3>Export a static site</h3>
-          <p><code>mix manto.build</code> renders your vault to plain HTML — folder structure, breadcrumbs, RSS, and sitemap included.</p>
+          <p><code>mix manto.build</code> renders your vault to plain HTML — folder structure, breadcrumbs, RSS, sitemap, and tag pages included.</p>
+        </div>
+        <div class="card">
+          <h3>Themes for static builds</h3>
+          <p>Ships with <code>default.css</code> (light) and <code>dark.css</code>. Pick one with <code>--theme</code>, or add your own in <code>priv/themes/</code>.</p>
         </div>
         <div class="card">
           <h3>Ship a self-contained release</h3>
-          <p><code>mix manto.release</code> builds a tarball with the BEAM runtime bundled. End users run <code>./bin/server</code> — no Elixir needed.</p>
+          <p><code>mix manto.release</code> builds a tarball with the BEAM runtime bundled. End users run <code>./bin/server</code> — no Elixir needed, and the vault auto-seeds on first boot.</p>
         </div>
         <div class="card">
           <h3>Local-first, no auth</h3>

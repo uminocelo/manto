@@ -4,7 +4,10 @@ defmodule Manto.Content.ParserPluginsTest do
 
   setup do
     path =
-      Path.join(System.tmp_dir!(), "manto-parser-plugin-#{System.unique_integer([:positive])}.json")
+      Path.join(
+        System.tmp_dir!(),
+        "manto-parser-plugin-#{System.unique_integer([:positive])}.json"
+      )
 
     on_exit(fn -> File.rm(path) end)
 
@@ -12,7 +15,8 @@ defmodule Manto.Content.ParserPluginsTest do
     Application.put_env(:manto, :config_path, path)
 
     on_exit(fn ->
-      if previous, do: Application.put_env(:manto, :config_path, previous),
+      if previous,
+        do: Application.put_env(:manto, :config_path, previous),
         else: Application.delete_env(:manto, :config_path)
     end)
 
