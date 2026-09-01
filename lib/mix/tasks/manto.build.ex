@@ -2,6 +2,7 @@ defmodule Mix.Tasks.Manto.Build do
   use Mix.Task
   alias Manto.Content
   alias Manto.Content.Parser
+  alias Manto.Fabric
   alias Manto.Fabric.PageTemplate
   alias Manto.Site
 
@@ -24,7 +25,7 @@ defmodule Mix.Tasks.Manto.Build do
   Options:
 
     * `--output`, `-o` - output directory (default: `priv/static_site`)
-    * `--theme`, `-t` - theme name from `priv/themes/*.css` (default: `default`)
+    * `--theme`, `-t` - theme name (built-in preset or custom theme, default: active theme from config)
   """
 
   @image_extensions ~w(png jpg jpeg gif svg webp)
@@ -42,17 +43,21 @@ defmodule Mix.Tasks.Manto.Build do
       )
 
     output_dir = Keyword.get(opts, :output, "priv/static_site")
-    theme = Keyword.get(opts, :theme, "default")
-    theme_path = Path.join([:code.priv_dir(:manto), "themes", "#{theme}.css"])
+    theme_name = Keyword.get(opts, :theme) || resolve_active_theme()
 
-    # validates if theme exists
-    unless File.exists?(theme_path) do
-      Mix.raise("Unknown theme #{inspect(theme)} (looked for #{theme_path})")
-    end
+    theme =
+      case Fabric.get_theme(theme_name) do
+        {:ok, theme} -> theme
+        :error ->
+          names = Fabric.list_themes() |> Enum.map(& &1.name)
+          Mix.raise("Unknown theme #{inspect(theme_name)}. Available: #{Enum.join(names, ", ")}")
+      end
+
+    css = Fabric.render_css(theme)
 
     # output creation and theme copy into it
     File.mkdir_p!(output_dir)
-    File.cp!(theme_path, Path.join(output_dir, "style.css"))
+    File.write!(Path.join(output_dir, "style.css"), css)
 
     site = Site.config()
     # get all pages
@@ -143,6 +148,13 @@ defmodule Mix.Tasks.Manto.Build do
       end
 
     String.duplicate("../", depth)
+  end
+
+  # resolve the active theme name from config, falling back to "default"
+  defp resolve_active_theme do
+    config = Site.config()
+    fabric = Map.get(config, "fabric", %{"active" => "default"})
+    Map.get(fabric, "active", "default")
   end
 
   # rewrite /vault-images/<path> to a relative path so static output

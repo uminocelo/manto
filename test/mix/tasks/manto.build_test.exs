@@ -381,4 +381,34 @@ defmodule Mix.Tasks.Manto.BuildTest do
 
     File.rm_rf!(output_dir)
   end
+
+  test "--theme default builds successfully with the default preset" do
+    output_dir =
+      Path.join(System.tmp_dir!(), "manto_build_theme_def_#{System.unique_integer([:positive])}")
+
+    Mix.Task.rerun("manto.build", ["--output", output_dir, "--theme", "default"])
+
+    style = File.read!(Path.join(output_dir, "style.css"))
+    assert style =~ "var(--fabric-color-text)"
+    assert style =~ "#1f2937"
+    File.rm_rf!(output_dir)
+  end
+
+  test "--theme dark builds successfully with the dark preset" do
+    output_dir =
+      Path.join(System.tmp_dir!(), "manto_build_theme_dark_#{System.unique_integer([:positive])}")
+
+    Mix.Task.rerun("manto.build", ["--output", output_dir, "--theme", "dark"])
+
+    style = File.read!(Path.join(output_dir, "style.css"))
+    assert style =~ "var(--fabric-color-bg)"
+    assert style =~ "#111827"
+    File.rm_rf!(output_dir)
+  end
+
+  test "unknown --theme raises a helpful error" do
+    assert_raise Mix.Error, ~r/Unknown theme/, fn ->
+      Mix.Task.rerun("manto.build", ["--theme", "nonexistent"])
+    end
+  end
 end
