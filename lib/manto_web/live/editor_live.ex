@@ -2,6 +2,9 @@ defmodule MantoWeb.EditorLive do
   use MantoWeb, :live_view
   alias Manto.Content
   alias Manto.Content.Parser
+  alias Manto.Fabric
+  alias Manto.Fabric.PageTemplate
+  alias Manto.Site
 
   def mount(_params, _session, socket) do
     pages = Content.list_pages()
@@ -887,11 +890,29 @@ defmodule MantoWeb.EditorLive do
 
   defp load_page(socket, page, body, opts) do
     metadata = Parser.metadata(body)
+    html = Parser.render_html(body, metadata: metadata)
+    site = Site.config()
+    theme = Fabric.active_theme()
+    css = Fabric.render_css(theme)
+
+    preview_html =
+      PageTemplate.render(
+        site: site,
+        title: Map.get(metadata, "title", Path.basename(page)),
+        body: html,
+        prefix: "",
+        current: page,
+        published_at: Map.get(metadata, "published_at"),
+        updated_at: Map.get(metadata, "updated_at"),
+        tags: metadata |> Map.get("tags", []) |> List.wrap(),
+        inline_style: css
+      )
 
     assign(socket,
       page: page,
       body: body,
-      html: Parser.render_html(body, metadata: metadata),
+      html: html,
+      preview_html: preview_html,
       metadata: metadata,
       draft: Parser.draft?(metadata),
       broken_links: Content.broken_wiki_links(body, page),
