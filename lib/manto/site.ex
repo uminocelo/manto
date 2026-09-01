@@ -16,7 +16,8 @@ defmodule Manto.Site do
     "description" => "A local-first Markdown site",
     "base_url" => "",
     "vault_path" => "priv/content",
-    "plugins" => []
+    "plugins" => [],
+    "fabric" => %{"active" => "default", "themes" => %{}}
   }
 
   @doc """

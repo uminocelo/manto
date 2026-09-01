@@ -2,6 +2,7 @@ defmodule Mix.Tasks.Manto.Build do
   use Mix.Task
   alias Manto.Content
   alias Manto.Content.Parser
+  alias Manto.Fabric.PageTemplate
   alias Manto.Site
 
   @shortdoc "Builds all pages into a static HTML site"
@@ -76,7 +77,7 @@ defmodule Mix.Tasks.Manto.Build do
         write_output(
           output_dir,
           "#{name}.html",
-          page_template(
+          PageTemplate.render(
             site: site,
             title: title,
             body: html,
@@ -153,68 +154,6 @@ defmodule Mix.Tasks.Manto.Build do
     end)
   end
 
-  # breadcrumb trail: Home / folder / ... / current label
-  defp breadcrumb_html(context, prefix, current_label) do
-    dirs =
-      case Path.dirname(context) do
-        "." -> []
-        dir -> Path.split(dir)
-      end
-
-    ancestor_links =
-      for {dir, i} <- Enum.with_index(dirs, 1) do
-        folder = Enum.take(dirs, i) |> Enum.join("/")
-        ~s(<a href="#{prefix}#{folder}/index.html">#{dir}</a>)
-      end
-
-    ([~s(<a href="#{prefix}index.html">Home</a>)] ++ ancestor_links ++ [current_label])
-    |> Enum.join(" / ")
-  end
-
-  # template for each page
-  defp page_template(assigns) do
-    crumbs =
-      breadcrumb_html(assigns[:current], assigns[:prefix], assigns[:current] |> Path.basename())
-
-    meta =
-      [
-        assigns[:published_at] &&
-          ~s(<p class="published">Published on #{assigns[:published_at]}</p>),
-        assigns[:updated_at] && ~s(<p class="updated">Updated on #{assigns[:updated_at]}</p>)
-      ]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join("\n")
-
-    tags =
-      case assigns[:tags] do
-        [] ->
-          nil
-
-        tags ->
-          ~s(<p class="tags">) <>
-            Enum.map_join(tags, ", ", &tag_link(assigns[:prefix], &1)) <> "</p>"
-      end
-
-    """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8" />
-      <title>#{assigns[:title]} · #{assigns[:site]["title"]}</title>
-      <link rel="stylesheet" href="#{assigns[:prefix]}style.css" />
-    </head>
-    <body>
-      <nav>#{crumbs}</nav>
-      <article>
-    #{meta}
-    #{tags}
-    #{assigns[:body]}
-      </article>
-    </body>
-    </html>
-    """
-  end
-
   # pages whose direct parent folder is `folder` ("" for the root)
   defp child_pages(page_data, folder) do
     Enum.filter(page_data, &(Path.dirname(&1.name) == if(folder == "", do: ".", else: folder)))
@@ -288,7 +227,7 @@ defmodule Mix.Tasks.Manto.Build do
       :ok
     else
       prefix = relative_prefix("#{folder}/index")
-      crumbs = breadcrumb_html(folder, prefix, Path.basename(folder))
+      crumbs = PageTemplate.breadcrumb_html(folder, prefix)
 
       page_items =
         child_pages(page_data, folder)
@@ -392,7 +331,7 @@ defmodule Mix.Tasks.Manto.Build do
             ~s(      <li><a href="../#{page.name}.html">#{page.title}</a></li>)
           end)
 
-        write_output(output_dir, "tag/#{tag_slug(tag)}.html", """
+        write_output(output_dir, "tag/#{PageTemplate.tag_slug(tag)}.html", """
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -420,17 +359,6 @@ defmodule Mix.Tasks.Manto.Build do
         image <- Path.wildcard(Path.join(Content.content_dir(), "**/*.#{ext}")) do
       File.cp!(image, Path.join(output_dir, Path.basename(image)))
     end
-  end
-
-  defp tag_link(prefix, tag) do
-    ~s(<a href="#{prefix}tag/#{tag_slug(tag)}.html">#{tag}</a>)
-  end
-
-  defp tag_slug(tag) do
-    tag
-    |> String.trim()
-    |> String.replace(" ", "-")
-    |> String.downcase()
   end
 
   defp rss_pubdate(%Date{} = date) do
