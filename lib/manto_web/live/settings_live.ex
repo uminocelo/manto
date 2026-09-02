@@ -60,6 +60,7 @@ defmodule MantoWeb.SettingsLive do
       |> assign_builder_field("builder_typography", :font_body, Map.get(params, "builder-font-body", socket.assigns.builder_typography[:font_body]))
       |> assign_builder_field("builder_typography", :font_code, Map.get(params, "builder-font-code", socket.assigns.builder_typography[:font_code]))
       |> assign_builder_field("builder_layout", :content_width, Map.get(params, "builder-content-width", socket.assigns.builder_layout[:content_width]))
+      |> assign_builder_field("builder_layout", :content_radius, Map.get(params, "builder-content-radius", socket.assigns.builder_layout[:content_radius]))
 
     {:noreply, socket}
   end
