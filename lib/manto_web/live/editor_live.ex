@@ -637,7 +637,9 @@ defmodule MantoWeb.EditorLive do
 
   def render_tree(assigns) do
     assigns =
-      assign(assigns, :tree_id,
+      assign(
+        assigns,
+        :tree_id,
         if assigns.parent do
           "editor-tree-#{slug_id(assigns.parent)}"
         else
