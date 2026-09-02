@@ -47,7 +47,9 @@ defmodule Mix.Tasks.Manto.Build do
 
     theme =
       case Fabric.get_theme(theme_name) do
-        {:ok, theme} -> theme
+        {:ok, theme} ->
+          theme
+
         :error ->
           names = Fabric.list_themes() |> Enum.map(& &1.name)
           Mix.raise("Unknown theme #{inspect(theme_name)}. Available: #{Enum.join(names, ", ")}")

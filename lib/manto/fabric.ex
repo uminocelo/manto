@@ -99,7 +99,9 @@ defmodule Manto.Fabric do
   @spec get_theme(String.t()) :: {:ok, Theme.t()} | :error
   def get_theme(name) when is_binary(name) do
     case Presets.get(name) do
-      {:ok, _} = ok -> ok
+      {:ok, _} = ok ->
+        ok
+
       :error ->
         case Map.fetch(custom_themes(), name) do
           {:ok, tokens} -> {:ok, Theme.new(tokens)}

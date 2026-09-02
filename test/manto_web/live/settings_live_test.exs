@@ -274,7 +274,13 @@ defmodule MantoWeb.SettingsLiveTest do
       File.rm_rf(vault)
     end)
 
-    Site.save(%{"vault_path" => vault, "fabric" => %{"active" => "default", "themes" => %{"Blog" => %{"colors" => %{"background" => "#f0f0f0"}}}}})
+    Site.save(%{
+      "vault_path" => vault,
+      "fabric" => %{
+        "active" => "default",
+        "themes" => %{"Blog" => %{"colors" => %{"background" => "#f0f0f0"}}}
+      }
+    })
 
     {:ok, view, _html} = live(conn, "/")
 

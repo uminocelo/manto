@@ -48,7 +48,8 @@ defmodule Manto.FabricTest do
       opening = String.graphemes(css) |> Enum.count(fn c -> c == "{" end)
       closing = String.graphemes(css) |> Enum.count(fn c -> c == "}" end)
 
-      assert opening == closing, "Expected balanced braces, got #{opening} open / #{closing} close"
+      assert opening == closing,
+             "Expected balanced braces, got #{opening} open / #{closing} close"
     end
 
     test "default and dark presets produce distinct output" do
@@ -102,22 +103,34 @@ defmodule Manto.FabricTest do
 
   describe "themes CRUD" do
     setup do
-      path = Path.join(System.tmp_dir!(), "manto-fabric-#{System.unique_integer([:positive])}.json")
+      path =
+        Path.join(System.tmp_dir!(), "manto-fabric-#{System.unique_integer([:positive])}.json")
+
       prev = Application.get_env(:manto, :config_path)
       Application.put_env(:manto, :config_path, path)
-      on_exit(fn -> File.rm(path); restore_config(prev) end)
+
+      on_exit(fn ->
+        File.rm(path)
+        restore_config(prev)
+      end)
+
       %{_path: path}
     end
 
     defp restore_config(prev) do
-      if prev, do: Application.put_env(:manto, :config_path, prev), else: Application.delete_env(:manto, :config_path)
+      if prev,
+        do: Application.put_env(:manto, :config_path, prev),
+        else: Application.delete_env(:manto, :config_path)
     end
 
     test "save_theme/2 persists a custom theme under fabric.themes" do
       Fabric.save_theme("Blog", %{"colors" => %{"background" => "#f0f0f0"}})
 
       config = Site.config()
-      assert get_in(config, ["fabric", "themes", "Blog"]) == %{"colors" => %{"background" => "#f0f0f0"}}
+
+      assert get_in(config, ["fabric", "themes", "Blog"]) == %{
+               "colors" => %{"background" => "#f0f0f0"}
+             }
     end
 
     test "save_theme/2 preserves existing themes" do

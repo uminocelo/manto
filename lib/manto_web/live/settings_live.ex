@@ -40,7 +40,8 @@ defmodule MantoWeb.SettingsLive do
   def handle_event("edit-theme", %{"name" => name}, socket) do
     case Fabric.get_theme(name) do
       {:ok, theme} ->
-        {:noreply, socket |> assign(builder_from_theme(name, theme)) |> assign(builder_flash: nil)}
+        {:noreply,
+         socket |> assign(builder_from_theme(name, theme)) |> assign(builder_flash: nil)}
 
       :error ->
         {:noreply, assign(socket, builder_flash: "Theme '#{name}' not found")}
@@ -48,19 +49,54 @@ defmodule MantoWeb.SettingsLive do
   end
 
   def handle_event("builder-change", params, socket) do
-    builder_name = Map.get(params, "_target", [""]) |> List.first() |> normalize_builder_key()
+    _builder_name = Map.get(params, "_target", [""]) |> List.first() |> normalize_builder_key()
 
     socket =
       socket
-      |> assign_builder_field("builder_name", Map.get(params, "value", socket.assigns.builder_name))
-      |> assign_builder_field("builder_colors", :text, Map.get(params, "builder-color-text", socket.assigns.builder_colors[:text]))
-      |> assign_builder_field("builder_colors", :background, Map.get(params, "builder-color-bg", socket.assigns.builder_colors[:background]))
-      |> assign_builder_field("builder_colors", :link, Map.get(params, "builder-color-link", socket.assigns.builder_colors[:link]))
-      |> assign_builder_field("builder_colors", :pre_background, Map.get(params, "builder-color-pre-bg", socket.assigns.builder_colors[:pre_background]))
-      |> assign_builder_field("builder_typography", :font_body, Map.get(params, "builder-font-body", socket.assigns.builder_typography[:font_body]))
-      |> assign_builder_field("builder_typography", :font_code, Map.get(params, "builder-font-code", socket.assigns.builder_typography[:font_code]))
-      |> assign_builder_field("builder_layout", :content_width, Map.get(params, "builder-content-width", socket.assigns.builder_layout[:content_width]))
-      |> assign_builder_field("builder_layout", :content_radius, Map.get(params, "builder-content-radius", socket.assigns.builder_layout[:content_radius]))
+      |> assign_builder_field(
+        "builder_name",
+        Map.get(params, "value", socket.assigns.builder_name)
+      )
+      |> assign_builder_field(
+        "builder_colors",
+        :text,
+        Map.get(params, "builder-color-text", socket.assigns.builder_colors[:text])
+      )
+      |> assign_builder_field(
+        "builder_colors",
+        :background,
+        Map.get(params, "builder-color-bg", socket.assigns.builder_colors[:background])
+      )
+      |> assign_builder_field(
+        "builder_colors",
+        :link,
+        Map.get(params, "builder-color-link", socket.assigns.builder_colors[:link])
+      )
+      |> assign_builder_field(
+        "builder_colors",
+        :pre_background,
+        Map.get(params, "builder-color-pre-bg", socket.assigns.builder_colors[:pre_background])
+      )
+      |> assign_builder_field(
+        "builder_typography",
+        :font_body,
+        Map.get(params, "builder-font-body", socket.assigns.builder_typography[:font_body])
+      )
+      |> assign_builder_field(
+        "builder_typography",
+        :font_code,
+        Map.get(params, "builder-font-code", socket.assigns.builder_typography[:font_code])
+      )
+      |> assign_builder_field(
+        "builder_layout",
+        :content_width,
+        Map.get(params, "builder-content-width", socket.assigns.builder_layout[:content_width])
+      )
+      |> assign_builder_field(
+        "builder_layout",
+        :content_radius,
+        Map.get(params, "builder-content-radius", socket.assigns.builder_layout[:content_radius])
+      )
 
     {:noreply, socket}
   end
@@ -267,7 +303,10 @@ defmodule MantoWeb.SettingsLive do
   end
 
   defp default_builder_typography do
-    %{font_body: "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif", font_code: "ui-monospace, monospace"}
+    %{
+      font_body: "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+      font_code: "ui-monospace, monospace"
+    }
   end
 
   defp default_builder_layout do

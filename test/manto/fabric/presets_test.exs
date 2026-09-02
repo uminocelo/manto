@@ -17,7 +17,10 @@ defmodule Manto.Fabric.PresetsTest do
       assert theme.colors.background == "#ffffff"
       assert theme.colors.link == "#4f46e5"
       assert theme.colors.pre_background == "#f3f4f6"
-      assert theme.typography.font_body == "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"
+
+      assert theme.typography.font_body ==
+               "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"
+
       assert theme.typography.font_code == "ui-monospace, monospace"
       assert theme.layout.content_width == "42rem"
       assert theme.layout.content_radius == "0.375rem"
