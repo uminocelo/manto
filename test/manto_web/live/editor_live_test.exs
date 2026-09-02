@@ -712,7 +712,7 @@ defmodule MantoWeb.EditorLiveTest do
   end
 
   test "preview pane renders an iframe with themed content", %{conn: conn} do
-    {:ok, view, html} = live(conn, "/editor")
+    {:ok, _, html} = live(conn, "/editor")
 
     assert html =~ "Preview"
     assert html =~ ~r/<iframe/
