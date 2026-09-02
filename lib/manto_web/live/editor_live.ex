@@ -636,10 +636,17 @@ defmodule MantoWeb.EditorLive do
   attr :new_in_folder, :string, default: nil
 
   def render_tree(assigns) do
-    tree_id = if assigns.parent, do: "editor-tree-#{slug_id(assigns.parent)}", else: "editor-tree"
+    assigns =
+      assign(assigns, :tree_id,
+        if assigns.parent do
+          "editor-tree-#{slug_id(assigns.parent)}"
+        else
+          "editor-tree"
+        end
+      )
 
     ~H"""
-    <ul id={tree_id} phx-hook="DragDrop">
+    <ul id={@tree_id} phx-hook="DragDrop">
       <li
         :for={entry <- children_at(@entries, @parent, @collapsed_folders, @filter)}
         style={"padding-left: #{elem(entry, 0) * 16}px"}
