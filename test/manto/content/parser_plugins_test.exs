@@ -37,8 +37,8 @@ defmodule Manto.Content.ParserPluginsTest do
 
     assert html =~ "<ul>"
     assert html =~ ~s(href="#section-one")
-    assert html =~ "<h1>My Page</h1>"
-    assert html =~ "<h2>Section One</h2>"
+    assert html =~ ~s(<h1>My Page<a href="#my-page">)
+    assert html =~ ~s(<h2>Section One<a href="#section-one">)
   end
 
   test "render_html with header_image plugin enabled and metadata — banner div in output" do
@@ -62,7 +62,7 @@ defmodule Manto.Content.ParserPluginsTest do
     md = "# Just a heading\n\nSome text."
     html = Parser.render_html(md)
 
-    assert html =~ "<h1>Just a heading</h1>"
+    assert html =~ ~s(<h1>Just a heading<a href="#just-a-heading">)
     assert html =~ "<p>Some text.</p>"
     refute html =~ "<ul>"
     refute html =~ "header-image-banner"

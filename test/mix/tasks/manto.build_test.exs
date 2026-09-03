@@ -282,7 +282,7 @@ defmodule Mix.Tasks.Manto.BuildTest do
     Mix.Task.rerun("manto.build", ["--output", output_dir])
 
     html = File.read!(Path.join([output_dir, folder, "index.html"]))
-    assert html =~ ~s(<h1>My Custom Index</h1>)
+    assert html =~ ~s(<h1>My Custom Index<a href="#my-custom-index">)
     refute html =~ ~s(<h1>#{folder}</h1>)
 
     File.rm_rf!(output_dir)

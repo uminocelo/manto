@@ -48,6 +48,68 @@ defmodule Manto.Fabric do
   code {
     font-family: var(--fabric-font-code);
   }
+
+  /* Alerts / Admonitions */
+  .markdown-alert {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid;
+    border-radius: var(--fabric-content-radius);
+    background: var(--fabric-color-pre-bg);
+  }
+
+  .markdown-alert-note {
+    border-left-color: #3b82f6;
+  }
+
+  .markdown-alert-tip {
+    border-left-color: #22c55e;
+  }
+
+  .markdown-alert-important {
+    border-left-color: #8b5cf6;
+  }
+
+  .markdown-alert-warning {
+    border-left-color: #eab308;
+  }
+
+  .markdown-alert-caution {
+    border-left-color: #ef4444;
+  }
+
+  .markdown-alert-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Block directives */
+  .info,
+  .warning,
+  .tip,
+  .danger {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid;
+    border-radius: var(--fabric-content-radius);
+    background: var(--fabric-color-pre-bg);
+  }
+
+  .info {
+    border-left-color: #3b82f6;
+  }
+
+  .tip {
+    border-left-color: #22c55e;
+  }
+
+  .warning {
+    border-left-color: #eab308;
+  }
+
+  .danger {
+    border-left-color: #ef4444;
+  }
   """
 
   @doc """
