@@ -2,6 +2,9 @@ defmodule MantoWeb.EditorLive do
   use MantoWeb, :live_view
   alias Manto.Content
   alias Manto.Content.Parser
+  alias Manto.Fabric
+  alias Manto.Fabric.PageTemplate
+  alias Manto.Site
 
   def mount(_params, _session, socket) do
     pages = Content.list_pages()
@@ -633,10 +636,19 @@ defmodule MantoWeb.EditorLive do
   attr :new_in_folder, :string, default: nil
 
   def render_tree(assigns) do
-    tree_id = if assigns.parent, do: "editor-tree-#{slug_id(assigns.parent)}", else: "editor-tree"
+    assigns =
+      assign(
+        assigns,
+        :tree_id,
+        if assigns.parent do
+          "editor-tree-#{slug_id(assigns.parent)}"
+        else
+          "editor-tree"
+        end
+      )
 
     ~H"""
-    <ul id={tree_id} phx-hook="DragDrop">
+    <ul id={@tree_id} phx-hook="DragDrop">
       <li
         :for={entry <- children_at(@entries, @parent, @collapsed_folders, @filter)}
         style={"padding-left: #{elem(entry, 0) * 16}px"}
@@ -887,11 +899,29 @@ defmodule MantoWeb.EditorLive do
 
   defp load_page(socket, page, body, opts) do
     metadata = Parser.metadata(body)
+    html = Parser.render_html(body, metadata: metadata)
+    site = Site.config()
+    theme = Fabric.active_theme()
+    css = Fabric.render_css(theme)
+
+    preview_html =
+      PageTemplate.render(
+        site: site,
+        title: Map.get(metadata, "title", Path.basename(page)),
+        body: html,
+        prefix: "",
+        current: page,
+        published_at: Map.get(metadata, "published_at"),
+        updated_at: Map.get(metadata, "updated_at"),
+        tags: metadata |> Map.get("tags", []) |> List.wrap(),
+        inline_style: css
+      )
 
     assign(socket,
       page: page,
       body: body,
-      html: Parser.render_html(body, metadata: metadata),
+      html: html,
+      preview_html: preview_html,
       metadata: metadata,
       draft: Parser.draft?(metadata),
       broken_links: Content.broken_wiki_links(body, page),

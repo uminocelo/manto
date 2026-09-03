@@ -2,6 +2,8 @@ defmodule Mix.Tasks.Manto.Build do
   use Mix.Task
   alias Manto.Content
   alias Manto.Content.Parser
+  alias Manto.Fabric
+  alias Manto.Fabric.PageTemplate
   alias Manto.Site
 
   @shortdoc "Builds all pages into a static HTML site"
@@ -23,7 +25,7 @@ defmodule Mix.Tasks.Manto.Build do
   Options:
 
     * `--output`, `-o` - output directory (default: `priv/static_site`)
-    * `--theme`, `-t` - theme name from `priv/themes/*.css` (default: `default`)
+    * `--theme`, `-t` - theme name (built-in preset or custom theme, default: active theme from config)
   """
 
   @image_extensions ~w(png jpg jpeg gif svg webp)
@@ -41,17 +43,23 @@ defmodule Mix.Tasks.Manto.Build do
       )
 
     output_dir = Keyword.get(opts, :output, "priv/static_site")
-    theme = Keyword.get(opts, :theme, "default")
-    theme_path = Path.join([:code.priv_dir(:manto), "themes", "#{theme}.css"])
+    theme_name = Keyword.get(opts, :theme) || resolve_active_theme()
 
-    # validates if theme exists
-    unless File.exists?(theme_path) do
-      Mix.raise("Unknown theme #{inspect(theme)} (looked for #{theme_path})")
-    end
+    theme =
+      case Fabric.get_theme(theme_name) do
+        {:ok, theme} ->
+          theme
+
+        :error ->
+          names = Fabric.list_themes() |> Enum.map(& &1.name)
+          Mix.raise("Unknown theme #{inspect(theme_name)}. Available: #{Enum.join(names, ", ")}")
+      end
+
+    css = Fabric.render_css(theme)
 
     # output creation and theme copy into it
     File.mkdir_p!(output_dir)
-    File.cp!(theme_path, Path.join(output_dir, "style.css"))
+    File.write!(Path.join(output_dir, "style.css"), css)
 
     site = Site.config()
     # get all pages
@@ -76,7 +84,7 @@ defmodule Mix.Tasks.Manto.Build do
         write_output(
           output_dir,
           "#{name}.html",
-          page_template(
+          PageTemplate.render(
             site: site,
             title: title,
             body: html,
@@ -144,6 +152,13 @@ defmodule Mix.Tasks.Manto.Build do
     String.duplicate("../", depth)
   end
 
+  # resolve the active theme name from config, falling back to "default"
+  defp resolve_active_theme do
+    config = Site.config()
+    fabric = Map.get(config, "fabric", %{"active" => "default"})
+    Map.get(fabric, "active", "default")
+  end
+
   # rewrite /vault-images/<path> to a relative path so static output
   # resolves correctly from any depth (dev server uses the VaultImagesPlug)
   defp rewrite_vault_image_paths(html, prefix) do
@@ -151,68 +166,6 @@ defmodule Mix.Tasks.Manto.Build do
       filename = path |> String.replace_prefix("/vault-images/", "")
       prefix <> filename
     end)
-  end
-
-  # breadcrumb trail: Home / folder / ... / current label
-  defp breadcrumb_html(context, prefix, current_label) do
-    dirs =
-      case Path.dirname(context) do
-        "." -> []
-        dir -> Path.split(dir)
-      end
-
-    ancestor_links =
-      for {dir, i} <- Enum.with_index(dirs, 1) do
-        folder = Enum.take(dirs, i) |> Enum.join("/")
-        ~s(<a href="#{prefix}#{folder}/index.html">#{dir}</a>)
-      end
-
-    ([~s(<a href="#{prefix}index.html">Home</a>)] ++ ancestor_links ++ [current_label])
-    |> Enum.join(" / ")
-  end
-
-  # template for each page
-  defp page_template(assigns) do
-    crumbs =
-      breadcrumb_html(assigns[:current], assigns[:prefix], assigns[:current] |> Path.basename())
-
-    meta =
-      [
-        assigns[:published_at] &&
-          ~s(<p class="published">Published on #{assigns[:published_at]}</p>),
-        assigns[:updated_at] && ~s(<p class="updated">Updated on #{assigns[:updated_at]}</p>)
-      ]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join("\n")
-
-    tags =
-      case assigns[:tags] do
-        [] ->
-          nil
-
-        tags ->
-          ~s(<p class="tags">) <>
-            Enum.map_join(tags, ", ", &tag_link(assigns[:prefix], &1)) <> "</p>"
-      end
-
-    """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8" />
-      <title>#{assigns[:title]} · #{assigns[:site]["title"]}</title>
-      <link rel="stylesheet" href="#{assigns[:prefix]}style.css" />
-    </head>
-    <body>
-      <nav>#{crumbs}</nav>
-      <article>
-    #{meta}
-    #{tags}
-    #{assigns[:body]}
-      </article>
-    </body>
-    </html>
-    """
   end
 
   # pages whose direct parent folder is `folder` ("" for the root)
@@ -288,7 +241,7 @@ defmodule Mix.Tasks.Manto.Build do
       :ok
     else
       prefix = relative_prefix("#{folder}/index")
-      crumbs = breadcrumb_html(folder, prefix, Path.basename(folder))
+      crumbs = PageTemplate.breadcrumb_html(folder, prefix)
 
       page_items =
         child_pages(page_data, folder)
@@ -392,7 +345,7 @@ defmodule Mix.Tasks.Manto.Build do
             ~s(      <li><a href="../#{page.name}.html">#{page.title}</a></li>)
           end)
 
-        write_output(output_dir, "tag/#{tag_slug(tag)}.html", """
+        write_output(output_dir, "tag/#{PageTemplate.tag_slug(tag)}.html", """
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -420,17 +373,6 @@ defmodule Mix.Tasks.Manto.Build do
         image <- Path.wildcard(Path.join(Content.content_dir(), "**/*.#{ext}")) do
       File.cp!(image, Path.join(output_dir, Path.basename(image)))
     end
-  end
-
-  defp tag_link(prefix, tag) do
-    ~s(<a href="#{prefix}tag/#{tag_slug(tag)}.html">#{tag}</a>)
-  end
-
-  defp tag_slug(tag) do
-    tag
-    |> String.trim()
-    |> String.replace(" ", "-")
-    |> String.downcase()
   end
 
   defp rss_pubdate(%Date{} = date) do

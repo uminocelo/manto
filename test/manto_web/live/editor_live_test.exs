@@ -710,4 +710,32 @@ defmodule MantoWeb.EditorLiveTest do
 
     assert html =~ "already exists"
   end
+
+  test "preview pane renders an iframe with themed content", %{conn: conn} do
+    {:ok, _, html} = live(conn, "/editor")
+
+    assert html =~ "Preview"
+    assert html =~ ~r/<iframe/
+    assert html =~ ~r/id="preview-frame"/
+    assert html =~ ~r/srcdoc=/
+    assert html =~ ~r/&lt;!DOCTYPE html&gt;/
+    assert html =~ ~r/&lt;style&gt;/
+    assert html =~ ~r/--fabric-color-text/
+  end
+
+  test "editing markdown updates the preview_html assign", %{conn: conn} do
+    page = "Preview-Update-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    on_exit(fn -> File.rm(path) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    html =
+      view
+      |> form("form[phx-change=update]")
+      |> render_change(%{markdown: "# Hello World"})
+
+    assert html =~ "Hello World"
+    assert html =~ ~r/&lt;style&gt;/
+  end
 end

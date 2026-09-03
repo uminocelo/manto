@@ -157,4 +157,140 @@ defmodule MantoWeb.SettingsLiveTest do
     config = Site.config()
     assert config["plugins"] == []
   end
+
+  test "renders the theme selector with built-in and custom themes", %{conn: conn} do
+    {:ok, _view, html} = live(conn, "/")
+
+    assert html =~ "Theme"
+    assert html =~ "Built-in"
+    assert html =~ ~s(<option value="default")
+    assert html =~ ~s(<option value="dark")
+  end
+
+  test "selecting a theme persists it to manto.json", %{conn: conn} do
+    vault = unique_vault()
+
+    on_exit(fn ->
+      File.rm(Site.config_path())
+      File.rm_rf(vault)
+    end)
+
+    {:ok, view, _html} = live(conn, "/")
+
+    view
+    |> form("#settings-form", %{
+      vault_path: vault,
+      title: "Theme Test",
+      description: "",
+      base_url: "",
+      theme: "dark"
+    })
+    |> render_submit()
+
+    config = Site.config()
+    assert config["fabric"]["active"] == "dark"
+  end
+
+  test "theme selector reflects the saved active theme on reload", %{conn: conn} do
+    vault = unique_vault()
+
+    on_exit(fn ->
+      File.rm(Site.config_path())
+      File.rm_rf(vault)
+    end)
+
+    Site.save(%{
+      "vault_path" => vault,
+      "fabric" => %{"active" => "dark", "themes" => %{}}
+    })
+
+    {:ok, _view, html} = live(conn, "/")
+
+    assert html =~ ~s(<option value="dark" selected)
+  end
+
+  test "theme builder panel toggles with Manage themes button", %{conn: conn} do
+    {:ok, view, html} = live(conn, "/")
+
+    assert html =~ "Manage themes"
+
+    view |> element("button", "Manage themes") |> render_click()
+
+    assert has_element?(view, "#theme-builder")
+    assert render(view) =~ "New theme"
+  end
+
+  test "theme builder saves a custom theme and lists it in the selector", %{conn: conn} do
+    vault = unique_vault()
+
+    on_exit(fn ->
+      File.rm(Site.config_path())
+      File.rm_rf(vault)
+    end)
+
+    {:ok, view, _html} = live(conn, "/")
+
+    view |> element("button", "Manage themes") |> render_click()
+
+    # set the name
+    render_hook(view, "builder-change", %{"_target" => ["builder-name"], "value" => "My Theme"})
+
+    # save
+    view |> element("button", "Save theme") |> render_click()
+
+    config = Site.config()
+    assert get_in(config, ["fabric", "themes", "My Theme"])
+
+    # verify it appears in the selector
+    rendered = render(view)
+    assert rendered =~ "My Theme"
+  end
+
+  test "duplicate theme creates a copy with -copy suffix", %{conn: conn} do
+    vault = unique_vault()
+
+    on_exit(fn ->
+      File.rm(Site.config_path())
+      File.rm_rf(vault)
+    end)
+
+    {:ok, view, _html} = live(conn, "/")
+
+    view |> element("button", "Manage themes") |> render_click()
+
+    render_hook(view, "builder-change", %{"_target" => ["builder-name"], "value" => "Blog"})
+
+    view |> element("button", "Duplicate") |> render_click()
+
+    config = Site.config()
+    assert get_in(config, ["fabric", "themes", "Blog-copy"])
+  end
+
+  test "delete theme removes a custom theme", %{conn: conn} do
+    vault = unique_vault()
+
+    on_exit(fn ->
+      File.rm(Site.config_path())
+      File.rm_rf(vault)
+    end)
+
+    Site.save(%{
+      "vault_path" => vault,
+      "fabric" => %{
+        "active" => "default",
+        "themes" => %{"Blog" => %{"colors" => %{"background" => "#f0f0f0"}}}
+      }
+    })
+
+    {:ok, view, _html} = live(conn, "/")
+
+    view |> element("button", "Manage themes") |> render_click()
+
+    render_hook(view, "builder-change", %{"_target" => ["builder-name"], "value" => "Blog"})
+
+    view |> element("button", "Delete") |> render_click()
+
+    config = Site.config()
+    refute get_in(config, ["fabric", "themes", "Blog"])
+  end
 end
