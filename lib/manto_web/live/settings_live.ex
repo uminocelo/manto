@@ -143,11 +143,17 @@ defmodule MantoWeb.SettingsLive do
 
       Fabric.save_theme(name, tokens)
 
-      {:noreply,
-       socket
-       |> assign_vault(Site.config())
-       |> assign(builder_from_theme(name, Fabric.Theme.new(tokens)))
-       |> assign(builder_flash: "Theme '#{name}' saved")}
+      case Fabric.Theme.new(tokens) do
+        %Manto.Fabric.Theme{} = theme ->
+          {:noreply,
+           socket
+           |> assign_vault(Site.config())
+           |> assign(builder_from_theme(name, theme))
+           |> assign(builder_flash: "Theme '#{name}' saved")}
+
+        {:error, reason} ->
+          {:noreply, assign(socket, builder_flash: reason)}
+      end
     end
   end
 
@@ -189,16 +195,22 @@ defmodule MantoWeb.SettingsLive do
 
       Fabric.save_theme(dup_name, tokens)
 
-      {:noreply,
-       socket
-       |> assign_vault(Site.config())
-       |> assign(builder_from_theme(dup_name, Fabric.Theme.new(tokens)))
-       |> assign(builder_flash: "Duplicated as '#{dup_name}'")}
+      case Fabric.Theme.new(tokens) do
+        %Manto.Fabric.Theme{} = theme ->
+          {:noreply,
+           socket
+           |> assign_vault(Site.config())
+           |> assign(builder_from_theme(dup_name, theme))
+           |> assign(builder_flash: "Duplicated as '#{dup_name}'")}
+
+        {:error, reason} ->
+          {:noreply, assign(socket, builder_flash: reason)}
+      end
     end
   end
 
-  def handle_event("delete-theme", _, socket) do
-    name = socket.assigns.builder_name
+  def handle_event("delete-theme", params, socket) do
+    name = params["name"] || socket.assigns.builder_name
 
     if is_nil(name) or String.trim(name) == "" do
       {:noreply, assign(socket, builder_flash: "No theme selected to delete")}

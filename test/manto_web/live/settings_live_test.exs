@@ -330,7 +330,7 @@ defmodule MantoWeb.SettingsLiveTest do
 
     render_hook(view, "builder-change", %{"_target" => ["builder-name"], "builder-name" => "Blog"})
 
-    view |> element("button", "Delete") |> render_click()
+    view |> element("#delete-builder-theme") |> render_click()
 
     config = Site.config()
     refute get_in(config, ["fabric", "themes", "Blog"])
