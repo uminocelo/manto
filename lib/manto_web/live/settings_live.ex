@@ -11,6 +11,10 @@ defmodule MantoWeb.SettingsLive do
     {:ok, assign_vault(socket, Site.config())}
   end
 
+  def handle_params(_params, uri, socket) do
+    {:noreply, assign(socket, current_path: URI.parse(uri).path)}
+  end
+
   def handle_event("save", params, socket) do
     case build_settings(params) do
       {:ok, settings} ->
@@ -50,24 +54,37 @@ defmodule MantoWeb.SettingsLive do
 
   def handle_event("builder-change", params, socket) do
     target = params |> Map.get("_target", [""]) |> List.first()
-    value = Map.get(params, "value")
+
+    value =
+      if target != "",
+        do: Map.get(params, target, Map.get(params, "value")),
+        else: Map.get(params, "value")
 
     socket =
       case target do
         "builder-name" ->
           assign_builder_field(socket, "builder_name", value)
 
-        "builder-color-text" ->
-          assign_builder_field(socket, "builder_colors", :text, value)
+        "builder-primary-text" ->
+          assign_builder_field(socket, "builder_colors", :primary, :text, value)
 
-        "builder-color-bg" ->
-          assign_builder_field(socket, "builder_colors", :background, value)
+        "builder-primary-bg" ->
+          assign_builder_field(socket, "builder_colors", :primary, :background, value)
 
-        "builder-color-link" ->
-          assign_builder_field(socket, "builder_colors", :link, value)
+        "builder-secondary-text" ->
+          assign_builder_field(socket, "builder_colors", :secondary, :text, value)
 
-        "builder-color-pre-bg" ->
-          assign_builder_field(socket, "builder_colors", :pre_background, value)
+        "builder-secondary-bg" ->
+          assign_builder_field(socket, "builder_colors", :secondary, :background, value)
+
+        "builder-accent-text" ->
+          assign_builder_field(socket, "builder_colors", :accent, :text, value)
+
+        "builder-accent-bg" ->
+          assign_builder_field(socket, "builder_colors", :accent, :background, value)
+
+        "builder-font-heading" ->
+          assign_builder_field(socket, "builder_typography", :font_heading, value)
 
         "builder-font-body" ->
           assign_builder_field(socket, "builder_typography", :font_body, value)
@@ -75,11 +92,14 @@ defmodule MantoWeb.SettingsLive do
         "builder-font-code" ->
           assign_builder_field(socket, "builder_typography", :font_code, value)
 
-        "builder-content-width" ->
-          assign_builder_field(socket, "builder_layout", :content_width, value)
+        "builder-page-width" ->
+          assign_builder_field(socket, "builder_layout", :page_width, value)
 
         "builder-content-radius" ->
           assign_builder_field(socket, "builder_layout", :content_radius, value)
+
+        "builder-custom-css" ->
+          assign_builder_field(socket, "builder_custom_css", value)
 
         _ ->
           socket
@@ -96,19 +116,29 @@ defmodule MantoWeb.SettingsLive do
     else
       tokens = %{
         "colors" => %{
-          "text" => socket.assigns.builder_colors[:text],
-          "background" => socket.assigns.builder_colors[:background],
-          "link" => socket.assigns.builder_colors[:link],
-          "pre_background" => socket.assigns.builder_colors[:pre_background]
+          "primary" => %{
+            "text" => socket.assigns.builder_colors[:primary][:text],
+            "background" => socket.assigns.builder_colors[:primary][:background]
+          },
+          "secondary" => %{
+            "text" => socket.assigns.builder_colors[:secondary][:text],
+            "background" => socket.assigns.builder_colors[:secondary][:background]
+          },
+          "accent" => %{
+            "text" => socket.assigns.builder_colors[:accent][:text],
+            "background" => socket.assigns.builder_colors[:accent][:background]
+          }
         },
         "typography" => %{
+          "font_heading" => socket.assigns.builder_typography[:font_heading],
           "font_body" => socket.assigns.builder_typography[:font_body],
           "font_code" => socket.assigns.builder_typography[:font_code]
         },
         "layout" => %{
-          "content_width" => socket.assigns.builder_layout[:content_width],
+          "page_width" => socket.assigns.builder_layout[:page_width],
           "content_radius" => socket.assigns.builder_layout[:content_radius]
-        }
+        },
+        "custom_css" => socket.assigns.builder_custom_css
       }
 
       Fabric.save_theme(name, tokens)
@@ -132,19 +162,29 @@ defmodule MantoWeb.SettingsLive do
 
       tokens = %{
         "colors" => %{
-          "text" => socket.assigns.builder_colors[:text],
-          "background" => socket.assigns.builder_colors[:background],
-          "link" => socket.assigns.builder_colors[:link],
-          "pre_background" => socket.assigns.builder_colors[:pre_background]
+          "primary" => %{
+            "text" => socket.assigns.builder_colors[:primary][:text],
+            "background" => socket.assigns.builder_colors[:primary][:background]
+          },
+          "secondary" => %{
+            "text" => socket.assigns.builder_colors[:secondary][:text],
+            "background" => socket.assigns.builder_colors[:secondary][:background]
+          },
+          "accent" => %{
+            "text" => socket.assigns.builder_colors[:accent][:text],
+            "background" => socket.assigns.builder_colors[:accent][:background]
+          }
         },
         "typography" => %{
+          "font_heading" => socket.assigns.builder_typography[:font_heading],
           "font_body" => socket.assigns.builder_typography[:font_body],
           "font_code" => socket.assigns.builder_typography[:font_code]
         },
         "layout" => %{
-          "content_width" => socket.assigns.builder_layout[:content_width],
+          "page_width" => socket.assigns.builder_layout[:page_width],
           "content_radius" => socket.assigns.builder_layout[:content_radius]
-        }
+        },
+        "custom_css" => socket.assigns.builder_custom_css
       }
 
       Fabric.save_theme(dup_name, tokens)
@@ -252,6 +292,7 @@ defmodule MantoWeb.SettingsLive do
     |> assign_new(:builder_colors, fn -> default_builder_colors() end)
     |> assign_new(:builder_typography, fn -> default_builder_typography() end)
     |> assign_new(:builder_layout, fn -> default_builder_layout() end)
+    |> assign_new(:builder_custom_css, fn -> "" end)
   end
 
   defp builder_defaults(name) do
@@ -260,7 +301,8 @@ defmodule MantoWeb.SettingsLive do
       builder_name: name,
       builder_colors: default_builder_colors(),
       builder_typography: default_builder_typography(),
-      builder_layout: default_builder_layout()
+      builder_layout: default_builder_layout(),
+      builder_custom_css: ""
     }
   end
 
@@ -269,35 +311,50 @@ defmodule MantoWeb.SettingsLive do
       editing_theme: name,
       builder_name: name,
       builder_colors: %{
-        text: theme.colors.text,
-        background: theme.colors.background,
-        link: theme.colors.link,
-        pre_background: theme.colors.pre_background
+        primary: %{
+          text: theme.colors.primary.text,
+          background: theme.colors.primary.background
+        },
+        secondary: %{
+          text: theme.colors.secondary.text,
+          background: theme.colors.secondary.background
+        },
+        accent: %{
+          text: theme.colors.accent.text,
+          background: theme.colors.accent.background
+        }
       },
       builder_typography: %{
+        font_heading: theme.typography.font_heading,
         font_body: theme.typography.font_body,
         font_code: theme.typography.font_code
       },
       builder_layout: %{
-        content_width: theme.layout.content_width,
+        page_width: theme.layout.page_width,
         content_radius: theme.layout.content_radius
-      }
+      },
+      builder_custom_css: theme.custom_css
     }
   end
 
   defp default_builder_colors do
-    %{text: "#1f2937", background: "#ffffff", link: "#4f46e5", pre_background: "#f3f4f6"}
+    %{
+      primary: %{text: "#1f2937", background: "#ffffff"},
+      secondary: %{text: "#4b5563", background: "#f3f4f6"},
+      accent: %{text: "#4f46e5", background: "#eef2ff"}
+    }
   end
 
   defp default_builder_typography do
     %{
+      font_heading: "inherit",
       font_body: "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
       font_code: "ui-monospace, monospace"
     }
   end
 
   defp default_builder_layout do
-    %{content_width: "42rem", content_radius: "0.375rem"}
+    %{page_width: "42rem", content_radius: "0.375rem"}
   end
 
   defp assign_builder_field(socket, key, value) do
@@ -307,6 +364,14 @@ defmodule MantoWeb.SettingsLive do
   defp assign_builder_field(socket, group_key, sub_key, value) do
     current = Map.get(socket.assigns, String.to_atom(group_key), %{})
     updated = Map.put(current, sub_key, value)
+    assign(socket, String.to_atom(group_key), updated)
+  end
+
+  defp assign_builder_field(socket, group_key, sub_key, sub_sub_key, value) do
+    current = Map.get(socket.assigns, String.to_atom(group_key), %{})
+    inner = Map.get(current, sub_key, %{})
+    updated_inner = Map.put(inner, sub_sub_key, value)
+    updated = Map.put(current, sub_key, updated_inner)
     assign(socket, String.to_atom(group_key), updated)
   end
 end

@@ -16,13 +16,17 @@ defmodule Manto.Fabric do
 
   @base_template """
   body {
-    max-width: var(--fabric-content-width);
+    max-width: var(--fabric-page-width);
     margin: 2rem auto;
     padding: 0 1rem;
     font-family: var(--fabric-font-body);
-    color: var(--fabric-color-text);
-    background: var(--fabric-color-bg);
+    color: var(--fabric-color-primary-text);
+    background: var(--fabric-color-primary-bg);
     line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--fabric-font-heading);
   }
 
   nav {
@@ -35,11 +39,11 @@ defmodule Manto.Fabric do
   }
 
   a {
-    color: var(--fabric-color-link);
+    color: var(--fabric-color-accent-text);
   }
 
   pre {
-    background: var(--fabric-color-pre-bg);
+    background: var(--fabric-color-secondary-bg);
     padding: 1rem;
     overflow-x: auto;
     border-radius: var(--fabric-content-radius);
@@ -55,7 +59,7 @@ defmodule Manto.Fabric do
     margin-bottom: 1rem;
     border-left: 4px solid;
     border-radius: var(--fabric-content-radius);
-    background: var(--fabric-color-pre-bg);
+    background: var(--fabric-color-secondary-bg);
   }
 
   .markdown-alert-note {
@@ -92,7 +96,7 @@ defmodule Manto.Fabric do
     margin-bottom: 1rem;
     border-left: 4px solid;
     border-radius: var(--fabric-content-radius);
-    background: var(--fabric-color-pre-bg);
+    background: var(--fabric-color-secondary-bg);
   }
 
   .info {
@@ -118,17 +122,17 @@ defmodule Manto.Fabric do
   The output starts with a `:root { ... }` block declaring the design tokens
   as CSS custom properties, followed by the base template which references
   those variables.
-
-  ## Examples
-
-      iex> theme = Manto.Fabric.Theme.new(%{})
-      iex> css = Manto.Fabric.render_css(theme)
-      iex> String.starts_with?(css, ":root {")
-      true
   """
   @spec render_css(Theme.t()) :: String.t()
   def render_css(%Theme{} = theme) do
-    root_block(theme) <> "\n" <> @base_template
+    css = root_block(theme) <> "\n" <> @base_template
+
+    if theme.custom_css != "" and File.exists?(theme.custom_css) do
+      local = File.read!(theme.custom_css)
+      css <> "\n" <> local
+    else
+      css
+    end
   end
 
   @doc """
@@ -254,13 +258,16 @@ defmodule Manto.Fabric do
 
   defp root_block(theme) do
     vars = [
-      "  --fabric-color-text: #{theme.colors.text};",
-      "  --fabric-color-bg: #{theme.colors.background};",
-      "  --fabric-color-link: #{theme.colors.link};",
-      "  --fabric-color-pre-bg: #{theme.colors.pre_background};",
+      "  --fabric-color-primary-text: #{theme.colors.primary.text};",
+      "  --fabric-color-primary-bg: #{theme.colors.primary.background};",
+      "  --fabric-color-secondary-text: #{theme.colors.secondary.text};",
+      "  --fabric-color-secondary-bg: #{theme.colors.secondary.background};",
+      "  --fabric-color-accent-text: #{theme.colors.accent.text};",
+      "  --fabric-color-accent-bg: #{theme.colors.accent.background};",
+      "  --fabric-font-heading: #{theme.typography.font_heading};",
       "  --fabric-font-body: #{theme.typography.font_body};",
       "  --fabric-font-code: #{theme.typography.font_code};",
-      "  --fabric-content-width: #{theme.layout.content_width};",
+      "  --fabric-page-width: #{theme.layout.page_width};",
       "  --fabric-content-radius: #{theme.layout.content_radius};"
     ]
 

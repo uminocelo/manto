@@ -720,7 +720,7 @@ defmodule MantoWeb.EditorLiveTest do
     assert html =~ ~r/srcdoc=/
     assert html =~ ~r/&lt;!DOCTYPE html&gt;/
     assert html =~ ~r/&lt;style&gt;/
-    assert html =~ ~r/--fabric-color-text/
+    assert html =~ ~r/--fabric-color-primary-text/
   end
 
   test "editing markdown updates the preview_html assign", %{conn: conn} do

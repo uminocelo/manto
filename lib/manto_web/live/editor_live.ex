@@ -22,13 +22,13 @@ defmodule MantoWeb.EditorLive do
      )}
   end
 
-  def handle_params(%{"page" => page}, _uri, socket) when is_list(page) do
+  def handle_params(%{"page" => page}, uri, socket) when is_list(page) do
     page = Enum.join(page, "/")
-    {:noreply, open_page(socket, page)}
+    {:noreply, socket |> assign(current_path: URI.parse(uri).path) |> open_page(page)}
   end
 
-  def handle_params(_params, _uri, socket) do
-    {:noreply, open_page(socket, "welcome")}
+  def handle_params(_params, uri, socket) do
+    {:noreply, socket |> assign(current_path: URI.parse(uri).path) |> open_page("welcome")}
   end
 
   defp open_page(socket, page) do
@@ -914,7 +914,8 @@ defmodule MantoWeb.EditorLive do
         published_at: Map.get(metadata, "published_at"),
         updated_at: Map.get(metadata, "updated_at"),
         tags: metadata |> Map.get("tags", []) |> List.wrap(),
-        inline_style: css
+        inline_style: css,
+        custom_css_href: custom_css_href(theme)
       )
 
     assign(socket,
@@ -928,5 +929,17 @@ defmodule MantoWeb.EditorLive do
       saved: Keyword.get(opts, :saved, false),
       new: Keyword.get(opts, :new, false)
     )
+  end
+
+  # return the custom CSS href if the theme has one and it's a URL
+  # (local files are already inlined by render_css)
+  defp custom_css_href(theme) do
+    path = theme.custom_css
+
+    if path != "" and String.starts_with?(path, "http") do
+      path
+    else
+      nil
+    end
   end
 end

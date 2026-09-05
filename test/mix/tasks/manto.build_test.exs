@@ -389,7 +389,7 @@ defmodule Mix.Tasks.Manto.BuildTest do
     Mix.Task.rerun("manto.build", ["--output", output_dir, "--theme", "default"])
 
     style = File.read!(Path.join(output_dir, "style.css"))
-    assert style =~ "var(--fabric-color-text)"
+    assert style =~ "var(--fabric-color-primary-text)"
     assert style =~ "#1f2937"
     File.rm_rf!(output_dir)
   end
@@ -401,7 +401,7 @@ defmodule Mix.Tasks.Manto.BuildTest do
     Mix.Task.rerun("manto.build", ["--output", output_dir, "--theme", "dark"])
 
     style = File.read!(Path.join(output_dir, "style.css"))
-    assert style =~ "var(--fabric-color-bg)"
+    assert style =~ "var(--fabric-color-primary-bg)"
     assert style =~ "#111827"
     File.rm_rf!(output_dir)
   end

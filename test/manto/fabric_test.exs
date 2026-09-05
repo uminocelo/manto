@@ -14,13 +14,15 @@ defmodule Manto.FabricTest do
     test "contains all expected CSS variable declarations" do
       css = Fabric.render_css(Theme.new(%{}))
 
-      assert css =~ "--fabric-color-text: #1f2937;"
-      assert css =~ "--fabric-color-bg: #ffffff;"
-      assert css =~ "--fabric-color-link: #4f46e5;"
-      assert css =~ "--fabric-color-pre-bg: #f3f4f6;"
+      assert css =~ "--fabric-color-primary-text: #1f2937;"
+      assert css =~ "--fabric-color-primary-bg: #ffffff;"
+      assert css =~ "--fabric-color-secondary-text: #4b5563;"
+      assert css =~ "--fabric-color-secondary-bg: #f3f4f6;"
+      assert css =~ "--fabric-color-accent-text: #4f46e5;"
+      assert css =~ "--fabric-color-accent-bg: #eef2ff;"
       assert css =~ "--fabric-font-body: -apple-system, BlinkMacSystemFont"
       assert css =~ "--fabric-font-code: ui-monospace, monospace;"
-      assert css =~ "--fabric-content-width: 42rem;"
+      assert css =~ "--fabric-page-width: 42rem;"
       assert css =~ "--fabric-content-radius: 0.375rem;"
     end
 
@@ -28,15 +30,15 @@ defmodule Manto.FabricTest do
       css = Fabric.render_css(Theme.new(%{}))
 
       assert css =~ "body {"
-      assert css =~ "var(--fabric-content-width)"
+      assert css =~ "var(--fabric-page-width)"
       assert css =~ "var(--fabric-font-body)"
-      assert css =~ "var(--fabric-color-text)"
-      assert css =~ "var(--fabric-color-bg)"
+      assert css =~ "var(--fabric-color-primary-text)"
+      assert css =~ "var(--fabric-color-primary-bg)"
       assert css =~ "nav {"
       assert css =~ "a {"
-      assert css =~ "var(--fabric-color-link)"
+      assert css =~ "var(--fabric-color-accent-text)"
       assert css =~ "pre {"
-      assert css =~ "var(--fabric-color-pre-bg)"
+      assert css =~ "var(--fabric-color-secondary-bg)"
       assert css =~ "var(--fabric-content-radius)"
       assert css =~ "code {"
       assert css =~ "var(--fabric-font-code)"
@@ -60,33 +62,33 @@ defmodule Manto.FabricTest do
       dark_css = Fabric.render_css(dark)
 
       assert default_css != dark_css
-      assert dark_css =~ "--fabric-color-bg: #111827;"
-      assert dark_css =~ "--fabric-color-text: #e5e7eb;"
+      assert dark_css =~ "--fabric-color-primary-bg: #111827;"
+      assert dark_css =~ "--fabric-color-primary-text: #e5e7eb;"
     end
 
     test "custom theme variables appear in output" do
       theme =
         Theme.new(%{
-          "colors" => %{"background" => "#ff0000", "text" => "#00ff00"},
-          "layout" => %{"content_width" => "60rem"}
+          "colors" => %{"primary" => %{"background" => "#ff0000", "text" => "#00ff00"}},
+          "layout" => %{"page_width" => "60rem"}
         })
 
       css = Fabric.render_css(theme)
 
-      assert css =~ "--fabric-color-bg: #ff0000;"
-      assert css =~ "--fabric-color-text: #00ff00;"
-      assert css =~ "--fabric-content-width: 60rem;"
+      assert css =~ "--fabric-color-primary-bg: #ff0000;"
+      assert css =~ "--fabric-color-primary-text: #00ff00;"
+      assert css =~ "--fabric-page-width: 60rem;"
     end
 
     test "default preset renders equivalent to original default.css" do
       {:ok, theme} = Manto.Fabric.Presets.get("default")
       css = Fabric.render_css(theme)
 
-      assert css =~ "--fabric-color-text: #1f2937;"
-      assert css =~ "--fabric-color-bg: #ffffff;"
-      assert css =~ "--fabric-color-link: #4f46e5;"
-      assert css =~ "--fabric-color-pre-bg: #f3f4f6;"
-      assert css =~ "--fabric-content-width: 42rem;"
+      assert css =~ "--fabric-color-primary-text: #1f2937;"
+      assert css =~ "--fabric-color-primary-bg: #ffffff;"
+      assert css =~ "--fabric-color-accent-text: #4f46e5;"
+      assert css =~ "--fabric-color-secondary-bg: #f3f4f6;"
+      assert css =~ "--fabric-page-width: 42rem;"
       assert css =~ "--fabric-content-radius: 0.375rem;"
     end
 
@@ -94,10 +96,10 @@ defmodule Manto.FabricTest do
       {:ok, theme} = Manto.Fabric.Presets.get("dark")
       css = Fabric.render_css(theme)
 
-      assert css =~ "--fabric-color-text: #e5e7eb;"
-      assert css =~ "--fabric-color-bg: #111827;"
-      assert css =~ "--fabric-color-link: #818cf8;"
-      assert css =~ "--fabric-color-pre-bg: #1f2937;"
+      assert css =~ "--fabric-color-primary-text: #e5e7eb;"
+      assert css =~ "--fabric-color-primary-bg: #111827;"
+      assert css =~ "--fabric-color-accent-text: #818cf8;"
+      assert css =~ "--fabric-color-secondary-bg: #1f2937;"
     end
   end
 
@@ -124,18 +126,18 @@ defmodule Manto.FabricTest do
     end
 
     test "save_theme/2 persists a custom theme under fabric.themes" do
-      Fabric.save_theme("Blog", %{"colors" => %{"background" => "#f0f0f0"}})
+      Fabric.save_theme("Blog", %{"colors" => %{"primary" => %{"background" => "#f0f0f0"}}})
 
       config = Site.config()
 
       assert get_in(config, ["fabric", "themes", "Blog"]) == %{
-               "colors" => %{"background" => "#f0f0f0"}
+               "colors" => %{"primary" => %{"background" => "#f0f0f0"}}
              }
     end
 
     test "save_theme/2 preserves existing themes" do
-      Fabric.save_theme("Blog", %{"colors" => %{"background" => "#f0f0f0"}})
-      Fabric.save_theme("Portfolio", %{"colors" => %{"text" => "#222222"}})
+      Fabric.save_theme("Blog", %{"colors" => %{"primary" => %{"background" => "#f0f0f0"}}})
+      Fabric.save_theme("Portfolio", %{"colors" => %{"primary" => %{"text" => "#222222"}}})
 
       config = Site.config()
       assert get_in(config, ["fabric", "themes", "Blog"])
@@ -143,7 +145,7 @@ defmodule Manto.FabricTest do
     end
 
     test "list_themes/0 includes built-ins and customs" do
-      Fabric.save_theme("Blog", %{"colors" => %{"background" => "#f0f0f0"}})
+      Fabric.save_theme("Blog", %{"colors" => %{"primary" => %{"background" => "#f0f0f0"}}})
 
       themes = Fabric.list_themes()
 
@@ -154,14 +156,14 @@ defmodule Manto.FabricTest do
 
     test "get_theme/1 returns built-in presets" do
       assert {:ok, %Theme{} = theme} = Fabric.get_theme("default")
-      assert theme.colors.background == "#ffffff"
+      assert theme.colors.primary.background == "#ffffff"
     end
 
     test "get_theme/1 returns custom themes" do
-      Fabric.save_theme("Blog", %{"colors" => %{"background" => "#f0f0f0"}})
+      Fabric.save_theme("Blog", %{"colors" => %{"primary" => %{"background" => "#f0f0f0"}}})
 
       assert {:ok, %Theme{} = theme} = Fabric.get_theme("Blog")
-      assert theme.colors.background == "#f0f0f0"
+      assert theme.colors.primary.background == "#f0f0f0"
     end
 
     test "get_theme/1 returns :error for unknown theme" do
@@ -180,7 +182,7 @@ defmodule Manto.FabricTest do
 
       theme = Fabric.active_theme()
       assert %Theme{} = theme
-      assert theme.colors.background == "#111827"
+      assert theme.colors.primary.background == "#111827"
     end
 
     test "delete_theme/1 refuses built-in presets" do
@@ -189,25 +191,25 @@ defmodule Manto.FabricTest do
     end
 
     test "delete_theme/1 refuses the active theme" do
-      Fabric.save_theme("Blog", %{"colors" => %{"background" => "#f0f0f0"}})
+      Fabric.save_theme("Blog", %{"colors" => %{"primary" => %{"background" => "#f0f0f0"}}})
       Fabric.set_active("Blog")
 
       assert Fabric.delete_theme("Blog") == {:error, :active}
     end
 
     test "delete_theme/1 removes a custom theme" do
-      Fabric.save_theme("Blog", %{"colors" => %{"background" => "#f0f0f0"}})
+      Fabric.save_theme("Blog", %{"colors" => %{"primary" => %{"background" => "#f0f0f0"}}})
 
       assert Fabric.delete_theme("Blog") == :ok
       assert Fabric.get_theme("Blog") == :error
     end
 
     test "set_active and get_theme round-trip through Site.config" do
-      Fabric.save_theme("Blog", %{"colors" => %{"text" => "#333333"}})
+      Fabric.save_theme("Blog", %{"colors" => %{"primary" => %{"text" => "#333333"}}})
       Fabric.set_active("Blog")
 
       {:ok, theme} = Fabric.get_theme("Blog")
-      assert theme.colors.text == "#333333"
+      assert theme.colors.primary.text == "#333333"
 
       config = Site.config()
       assert config["fabric"]["active"] == "Blog"

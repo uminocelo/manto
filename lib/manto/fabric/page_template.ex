@@ -22,6 +22,7 @@ defmodule Manto.Fabric.PageTemplate do
   - `:tags` — optional list of tag strings
   - `:stylesheet_href` — optional path to a stylesheet (defaults to `"<prefix>style.css"`)
   - `:inline_style` — optional inline CSS string (renders inside `<style>` tag, takes precedence over `stylesheet_href`)
+  - `:custom_css_href` — optional path to a custom CSS file (renders as an additional `<link>` tag after the main stylesheet)
   """
   @spec render(Keyword.t()) :: String.t()
   def render(assigns) do
@@ -57,13 +58,20 @@ defmodule Manto.Fabric.PageTemplate do
         ~s(<link rel="stylesheet" href="#{href}" />)
       end
 
+    custom =
+      if assigns[:custom_css_href] do
+        ~s(\n    <link rel="stylesheet" href="#{assigns[:custom_css_href]}" />)
+      else
+        ""
+      end
+
     """
     <!DOCTYPE html>
     <html lang="en">
     <head>
       <meta charset="utf-8" />
       <title>#{assigns[:title]} · #{assigns[:site]["title"]}</title>
-      #{stylesheet}
+      #{stylesheet}#{custom}
     </head>
     <body>
       <nav>#{crumbs}</nav>

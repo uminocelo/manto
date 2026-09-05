@@ -12,63 +12,61 @@ defmodule MantoWeb.Layouts do
   embed_templates "layouts/*"
 
   @doc """
-  Renders your app layout.
+  Renders the app header (breadcrumb navigation and theme toggle) plus its
+  content slot.
 
-  This function is typically invoked from every template,
-  and it often contains your application menu, sidebar,
-  or similar.
+  This lives inside each LiveView's own template (rather than the root
+  layout) so it re-renders — and `current_path` stays accurate — across live
+  navigation between LiveViews. The root layout is only rendered on the
+  initial static request, so anything placed there would go stale after the
+  first live navigate.
 
   ## Examples
 
-      <Layouts.app flash={@flash}>
+      <Layouts.app current_path={@current_path}>
         <h1>Content</h1>
       </Layouts.app>
 
   """
-  attr :flash, :map, required: true, doc: "the map of flash messages"
-
-  attr :current_scope, :map,
-    default: nil,
-    doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
+  attr :current_path, :string, required: true
 
   slot :inner_block, required: true
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://hexdocs.pm/phoenix/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </div>
+    <header class="p-4 flex items-center justify-between border-1 border-b-gray-200 border-r-transparent border-l-transparent border-t-transparent">
+      <nav
+        aria-label="Breadcrumb"
+        class="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400"
+      >
+        <.link
+          navigate="/"
+          class={
+            if @current_path == "/",
+              do: "font-medium text-gray-900 dark:text-gray-100 pointer-events-none",
+              else: "hover:text-gray-700 dark:hover:text-gray-200"
+          }
+        >
+          Home
+        </.link>
+        <%= if String.starts_with?(@current_path, "/editor") do %>
+          <span aria-hidden="true">/</span>
+          <.link
+            navigate="/editor"
+            class={
+              if @current_path == "/editor",
+                do: "font-medium text-gray-900 dark:text-gray-100 pointer-events-none",
+                else: "hover:text-gray-700 dark:hover:text-gray-200"
+            }
+          >
+            Editor
+          </.link>
+        <% end %>
+      </nav>
+      <.theme_toggle />
     </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
-        {render_slot(@inner_block)}
-      </div>
-    </main>
-
-    <.flash_group flash={@flash} />
+    {render_slot(@inner_block)}
     """
   end
 

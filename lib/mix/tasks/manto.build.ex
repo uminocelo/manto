@@ -61,6 +61,9 @@ defmodule Mix.Tasks.Manto.Build do
     File.mkdir_p!(output_dir)
     File.write!(Path.join(output_dir, "style.css"), css)
 
+    # copy custom CSS file if the theme has one and it's a local file
+    custom_css_href = copy_custom_css(theme, output_dir)
+
     site = Site.config()
     # get all pages
     pages = Content.list_pages(include_drafts: false)
@@ -92,7 +95,8 @@ defmodule Mix.Tasks.Manto.Build do
             current: name,
             published_at: Map.get(metadata, "published_at"),
             updated_at: Map.get(metadata, "updated_at"),
-            tags: tags
+            tags: tags,
+            custom_css_href: custom_css_href
           )
         )
 
@@ -106,11 +110,11 @@ defmodule Mix.Tasks.Manto.Build do
         }
       end
 
-    write_index(output_dir, site, page_data)
-    write_folder_indexes(output_dir, site, page_data)
+    write_index(output_dir, site, page_data, custom_css_href)
+    write_folder_indexes(output_dir, site, page_data, custom_css_href)
     write_feed(output_dir, site, page_data)
     write_sitemap(output_dir, site, page_data)
-    write_tag_pages(output_dir, site, page_data)
+    write_tag_pages(output_dir, site, page_data, custom_css_href)
     copy_images(output_dir)
 
     broken_links =
@@ -168,6 +172,20 @@ defmodule Mix.Tasks.Manto.Build do
     end)
   end
 
+  # if the theme has a custom_css pointing to a local file, copy it into the
+  # output directory and return the relative href for page templates
+  defp copy_custom_css(theme, output_dir) do
+    path = theme.custom_css
+
+    if path != "" and File.exists?(path) do
+      filename = Path.basename(path)
+      File.cp!(path, Path.join(output_dir, filename))
+      filename
+    else
+      nil
+    end
+  end
+
   # pages whose direct parent folder is `folder` ("" for the root)
   defp child_pages(page_data, folder) do
     Enum.filter(page_data, &(Path.dirname(&1.name) == if(folder == "", do: ".", else: folder)))
@@ -183,7 +201,7 @@ defmodule Mix.Tasks.Manto.Build do
     |> Enum.sort()
   end
 
-  defp write_index(output_dir, site, page_data) do
+  defp write_index(output_dir, site, page_data, custom_css_href) do
     page_items =
       child_pages(page_data, "")
       |> Enum.map(fn page ->
@@ -203,13 +221,18 @@ defmodule Mix.Tasks.Manto.Build do
 
     items = Enum.reject([page_items, folder_items], &(&1 == "")) |> Enum.join("\n")
 
+    custom_link =
+      if custom_css_href,
+        do: ~s(\n    <link rel="stylesheet" href="#{custom_css_href}" />),
+        else: ""
+
     write_output(output_dir, "index.html", """
     <!DOCTYPE html>
     <html lang="en">
     <head>
       <meta charset="utf-8" />
       <title>#{site["title"]}</title>
-      <link rel="stylesheet" href="style.css" />
+      <link rel="stylesheet" href="style.css" />#{custom_link}
     </head>
     <body>
       <nav><a href="index.html">Home</a></nav>
@@ -226,16 +249,16 @@ defmodule Mix.Tasks.Manto.Build do
   end
 
   # auto-generate an index.html for every folder that has pages beneath it
-  defp write_folder_indexes(output_dir, site, page_data) do
+  defp write_folder_indexes(output_dir, site, page_data, custom_css_href) do
     page_data
     |> Enum.map(&Path.dirname(&1.name))
     |> Enum.reject(&(&1 == "."))
     |> Enum.uniq()
     |> Enum.sort()
-    |> Enum.each(&write_folder_index(output_dir, site, page_data, &1))
+    |> Enum.each(&write_folder_index(output_dir, site, page_data, &1, custom_css_href))
   end
 
-  defp write_folder_index(output_dir, site, page_data, folder) do
+  defp write_folder_index(output_dir, site, page_data, folder, custom_css_href) do
     # an explicit page named `<folder>/index` wins over the auto-generated index
     if Enum.any?(page_data, &(&1.name == "#{folder}/index")) do
       :ok
@@ -259,13 +282,18 @@ defmodule Mix.Tasks.Manto.Build do
 
       items = Enum.reject([page_items, folder_items], &(&1 == "")) |> Enum.join("\n")
 
+      custom_link =
+        if custom_css_href,
+          do: ~s(\n    <link rel="stylesheet" href="#{prefix}#{custom_css_href}" />),
+          else: ""
+
       write_output(output_dir, "#{folder}/index.html", """
       <!DOCTYPE html>
       <html lang="en">
       <head>
         <meta charset="utf-8" />
         <title>#{Path.basename(folder)} · #{site["title"]}</title>
-        <link rel="stylesheet" href="#{prefix}style.css" />
+        <link rel="stylesheet" href="#{prefix}style.css" />#{custom_link}
       </head>
       <body>
         <nav>#{crumbs}</nav>
@@ -328,7 +356,7 @@ defmodule Mix.Tasks.Manto.Build do
     """)
   end
 
-  defp write_tag_pages(output_dir, site, page_data) do
+  defp write_tag_pages(output_dir, site, page_data, custom_css_href) do
     tags =
       Enum.reduce(page_data, %{}, fn page, acc ->
         Enum.reduce(page.tags, acc, fn tag, acc ->
@@ -345,13 +373,18 @@ defmodule Mix.Tasks.Manto.Build do
             ~s(      <li><a href="../#{page.name}.html">#{page.title}</a></li>)
           end)
 
+        custom_link =
+          if custom_css_href,
+            do: ~s(\n    <link rel="stylesheet" href="../#{custom_css_href}" />),
+            else: ""
+
         write_output(output_dir, "tag/#{PageTemplate.tag_slug(tag)}.html", """
         <!DOCTYPE html>
         <html lang="en">
         <head>
           <meta charset="utf-8" />
           <title>Tag: #{tag} · #{site["title"]}</title>
-          <link rel="stylesheet" href="../style.css" />
+          <link rel="stylesheet" href="../style.css" />#{custom_link}
         </head>
         <body>
           <nav><a href="../index.html">Home</a></nav>

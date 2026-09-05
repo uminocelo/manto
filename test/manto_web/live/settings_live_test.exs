@@ -232,18 +232,21 @@ defmodule MantoWeb.SettingsLiveTest do
 
     view |> element("button", "Manage themes") |> render_click()
 
-    render_hook(view, "builder-change", %{"_target" => ["builder-name"], "value" => "Wide"})
+    render_hook(view, "builder-change", %{"_target" => ["builder-name"], "builder-name" => "Wide"})
 
     render_hook(view, "builder-change", %{
-      "_target" => ["builder-color-text"],
-      "value" => "#111111"
+      "_target" => ["builder-primary-text"],
+      "builder-primary-text" => "#111111"
     })
 
-    render_hook(view, "builder-change", %{"_target" => ["builder-color-bg"], "value" => "#eeeeee"})
+    render_hook(view, "builder-change", %{
+      "_target" => ["builder-primary-bg"],
+      "builder-primary-bg" => "#eeeeee"
+    })
 
     render_hook(view, "builder-change", %{
-      "_target" => ["builder-content-width"],
-      "value" => "60rem"
+      "_target" => ["builder-page-width"],
+      "builder-page-width" => "60rem"
     })
 
     view |> element("button", "Save theme") |> render_click()
@@ -251,9 +254,9 @@ defmodule MantoWeb.SettingsLiveTest do
     config = Site.config()
     theme = get_in(config, ["fabric", "themes", "Wide"])
     assert theme
-    assert get_in(theme, ["colors", "text"]) == "#111111"
-    assert get_in(theme, ["colors", "background"]) == "#eeeeee"
-    assert get_in(theme, ["layout", "content_width"]) == "60rem"
+    assert get_in(theme, ["colors", "primary", "text"]) == "#111111"
+    assert get_in(theme, ["colors", "primary", "background"]) == "#eeeeee"
+    assert get_in(theme, ["layout", "page_width"]) == "60rem"
   end
 
   test "theme builder saves a custom theme and lists it in the selector", %{conn: conn} do
@@ -269,7 +272,10 @@ defmodule MantoWeb.SettingsLiveTest do
     view |> element("button", "Manage themes") |> render_click()
 
     # set the name
-    render_hook(view, "builder-change", %{"_target" => ["builder-name"], "value" => "My Theme"})
+    render_hook(view, "builder-change", %{
+      "_target" => ["builder-name"],
+      "builder-name" => "My Theme"
+    })
 
     # save
     view |> element("button", "Save theme") |> render_click()
@@ -294,7 +300,7 @@ defmodule MantoWeb.SettingsLiveTest do
 
     view |> element("button", "Manage themes") |> render_click()
 
-    render_hook(view, "builder-change", %{"_target" => ["builder-name"], "value" => "Blog"})
+    render_hook(view, "builder-change", %{"_target" => ["builder-name"], "builder-name" => "Blog"})
 
     view |> element("button", "Duplicate") |> render_click()
 
@@ -322,7 +328,7 @@ defmodule MantoWeb.SettingsLiveTest do
 
     view |> element("button", "Manage themes") |> render_click()
 
-    render_hook(view, "builder-change", %{"_target" => ["builder-name"], "value" => "Blog"})
+    render_hook(view, "builder-change", %{"_target" => ["builder-name"], "builder-name" => "Blog"})
 
     view |> element("button", "Delete") |> render_click()
 

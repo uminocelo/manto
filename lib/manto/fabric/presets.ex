@@ -10,10 +10,9 @@ defmodule Manto.Fabric.Presets do
 
   @dark Manto.Fabric.Theme.new(%{
           "colors" => %{
-            "text" => "#e5e7eb",
-            "background" => "#111827",
-            "link" => "#818cf8",
-            "pre_background" => "#1f2937"
+            "primary" => %{"text" => "#e5e7eb", "background" => "#111827"},
+            "secondary" => %{"text" => "#9ca3af", "background" => "#1f2937"},
+            "accent" => %{"text" => "#818cf8", "background" => "#312e81"}
           }
         })
 
