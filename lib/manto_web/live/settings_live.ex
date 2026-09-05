@@ -49,54 +49,41 @@ defmodule MantoWeb.SettingsLive do
   end
 
   def handle_event("builder-change", params, socket) do
-    _builder_name = Map.get(params, "_target", [""]) |> List.first() |> normalize_builder_key()
+    target = params |> Map.get("_target", [""]) |> List.first()
+    value = Map.get(params, "value")
 
     socket =
-      socket
-      |> assign_builder_field(
-        "builder_name",
-        Map.get(params, "value", socket.assigns.builder_name)
-      )
-      |> assign_builder_field(
-        "builder_colors",
-        :text,
-        Map.get(params, "builder-color-text", socket.assigns.builder_colors[:text])
-      )
-      |> assign_builder_field(
-        "builder_colors",
-        :background,
-        Map.get(params, "builder-color-bg", socket.assigns.builder_colors[:background])
-      )
-      |> assign_builder_field(
-        "builder_colors",
-        :link,
-        Map.get(params, "builder-color-link", socket.assigns.builder_colors[:link])
-      )
-      |> assign_builder_field(
-        "builder_colors",
-        :pre_background,
-        Map.get(params, "builder-color-pre-bg", socket.assigns.builder_colors[:pre_background])
-      )
-      |> assign_builder_field(
-        "builder_typography",
-        :font_body,
-        Map.get(params, "builder-font-body", socket.assigns.builder_typography[:font_body])
-      )
-      |> assign_builder_field(
-        "builder_typography",
-        :font_code,
-        Map.get(params, "builder-font-code", socket.assigns.builder_typography[:font_code])
-      )
-      |> assign_builder_field(
-        "builder_layout",
-        :content_width,
-        Map.get(params, "builder-content-width", socket.assigns.builder_layout[:content_width])
-      )
-      |> assign_builder_field(
-        "builder_layout",
-        :content_radius,
-        Map.get(params, "builder-content-radius", socket.assigns.builder_layout[:content_radius])
-      )
+      case target do
+        "builder-name" ->
+          assign_builder_field(socket, "builder_name", value)
+
+        "builder-color-text" ->
+          assign_builder_field(socket, "builder_colors", :text, value)
+
+        "builder-color-bg" ->
+          assign_builder_field(socket, "builder_colors", :background, value)
+
+        "builder-color-link" ->
+          assign_builder_field(socket, "builder_colors", :link, value)
+
+        "builder-color-pre-bg" ->
+          assign_builder_field(socket, "builder_colors", :pre_background, value)
+
+        "builder-font-body" ->
+          assign_builder_field(socket, "builder_typography", :font_body, value)
+
+        "builder-font-code" ->
+          assign_builder_field(socket, "builder_typography", :font_code, value)
+
+        "builder-content-width" ->
+          assign_builder_field(socket, "builder_layout", :content_width, value)
+
+        "builder-content-radius" ->
+          assign_builder_field(socket, "builder_layout", :content_radius, value)
+
+        _ ->
+          socket
+      end
 
     {:noreply, socket}
   end
@@ -322,10 +309,4 @@ defmodule MantoWeb.SettingsLive do
     updated = Map.put(current, sub_key, value)
     assign(socket, String.to_atom(group_key), updated)
   end
-
-  defp normalize_builder_key("builder-name"), do: "builder_name"
-  defp normalize_builder_key("builder-content-width"), do: "builder_content_width"
-  defp normalize_builder_key("builder-font-body"), do: "builder_font_body"
-  defp normalize_builder_key("builder-font-code"), do: "builder_font_code"
-  defp normalize_builder_key(_), do: nil
 end

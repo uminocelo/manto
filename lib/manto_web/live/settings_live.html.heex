@@ -210,7 +210,8 @@
             <input
               type="text"
               id="builder-name"
-              phx-keyup="builder-change"
+              name="builder-name"
+              phx-change="builder-change"
               phx-debounce="300"
               value={@builder_name}
               placeholder="my-theme"
@@ -224,7 +225,8 @@
             <input
               type="text"
               id="builder-content-width"
-              phx-keyup="builder-change"
+              name="builder-content-width"
+              phx-change="builder-change"
               phx-debounce="300"
               value={@builder_layout[:content_width]}
               placeholder="42rem"
@@ -238,7 +240,8 @@
             <input
               type="text"
               id="builder-content-radius"
-              phx-keyup="builder-change"
+              name="builder-content-radius"
+              phx-change="builder-change"
               phx-debounce="300"
               value={@builder_layout[:content_radius]}
               placeholder="0.375rem"
@@ -252,7 +255,8 @@
             <input
               type="text"
               id="builder-font-body"
-              phx-keyup="builder-change"
+              name="builder-font-body"
+              phx-change="builder-change"
               phx-debounce="300"
               value={@builder_typography[:font_body]}
               placeholder="-apple-system, sans-serif"
@@ -266,7 +270,8 @@
             <input
               type="text"
               id="builder-font-code"
-              phx-keyup="builder-change"
+              name="builder-font-code"
+              phx-change="builder-change"
               phx-debounce="300"
               value={@builder_typography[:font_code]}
               placeholder="ui-monospace, monospace"
@@ -283,6 +288,7 @@
             <input
               type="color"
               id="builder-color-text"
+              name="builder-color-text"
               phx-change="builder-change"
               value={@builder_colors[:text]}
               class="w-full h-9 rounded cursor-pointer"
@@ -295,6 +301,7 @@
             <input
               type="color"
               id="builder-color-bg"
+              name="builder-color-bg"
               phx-change="builder-change"
               value={@builder_colors[:background]}
               class="w-full h-9 rounded cursor-pointer"
@@ -307,6 +314,7 @@
             <input
               type="color"
               id="builder-color-link"
+              name="builder-color-link"
               phx-change="builder-change"
               value={@builder_colors[:link]}
               class="w-full h-9 rounded cursor-pointer"
@@ -319,6 +327,7 @@
             <input
               type="color"
               id="builder-color-pre-bg"
+              name="builder-color-pre-bg"
               phx-change="builder-change"
               value={@builder_colors[:pre_background]}
               class="w-full h-9 rounded cursor-pointer"

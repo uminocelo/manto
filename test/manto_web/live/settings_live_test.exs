@@ -220,6 +220,42 @@ defmodule MantoWeb.SettingsLiveTest do
     assert render(view) =~ "New theme"
   end
 
+  test "theme builder persists color and layout changes, not just defaults", %{conn: conn} do
+    vault = unique_vault()
+
+    on_exit(fn ->
+      File.rm(Site.config_path())
+      File.rm_rf(vault)
+    end)
+
+    {:ok, view, _html} = live(conn, "/")
+
+    view |> element("button", "Manage themes") |> render_click()
+
+    render_hook(view, "builder-change", %{"_target" => ["builder-name"], "value" => "Wide"})
+
+    render_hook(view, "builder-change", %{
+      "_target" => ["builder-color-text"],
+      "value" => "#111111"
+    })
+
+    render_hook(view, "builder-change", %{"_target" => ["builder-color-bg"], "value" => "#eeeeee"})
+
+    render_hook(view, "builder-change", %{
+      "_target" => ["builder-content-width"],
+      "value" => "60rem"
+    })
+
+    view |> element("button", "Save theme") |> render_click()
+
+    config = Site.config()
+    theme = get_in(config, ["fabric", "themes", "Wide"])
+    assert theme
+    assert get_in(theme, ["colors", "text"]) == "#111111"
+    assert get_in(theme, ["colors", "background"]) == "#eeeeee"
+    assert get_in(theme, ["layout", "content_width"]) == "60rem"
+  end
+
   test "theme builder saves a custom theme and lists it in the selector", %{conn: conn} do
     vault = unique_vault()
 

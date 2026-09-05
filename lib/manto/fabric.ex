@@ -149,6 +149,7 @@ defmodule Manto.Fabric do
       Enum.map(custom_themes(), fn {name, tokens} ->
         %{name: name, type: :custom, theme: Theme.new(tokens)}
       end)
+      |> Enum.reject(fn entry -> match?({:error, _}, entry.theme) end)
 
     builtins ++ customs
   end
@@ -166,8 +167,14 @@ defmodule Manto.Fabric do
 
       :error ->
         case Map.fetch(custom_themes(), name) do
-          {:ok, tokens} -> {:ok, Theme.new(tokens)}
-          :error -> :error
+          {:ok, tokens} ->
+            case Theme.new(tokens) do
+              %Theme{} = theme -> {:ok, theme}
+              {:error, _} -> :error
+            end
+
+          :error ->
+            :error
         end
     end
   end
