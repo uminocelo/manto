@@ -902,10 +902,17 @@ defmodule MantoWeb.EditorLive do
     html = Parser.render_html(body, metadata: metadata)
     site = Site.config()
     theme = Fabric.active_theme()
-    css = Fabric.render_css(theme)
+
+    # Generate shadow-DOM-safe CSS: :root and body selectors don't work in
+    # shadow DOM — :host does. The shadow host (the div) receives the layout
+    # and color properties, and the content inherits them.
+    css =
+      Fabric.render_css(theme)
+      |> String.replace(":root", ":host")
+      |> String.replace(~r/\bbody\s*\{/, ":host {")
 
     preview_html =
-      PageTemplate.render(
+      PageTemplate.render_preview_body(
         site: site,
         title: Map.get(metadata, "title", Path.basename(page)),
         body: html,

@@ -711,14 +711,12 @@ defmodule MantoWeb.EditorLiveTest do
     assert html =~ "already exists"
   end
 
-  test "preview pane renders an iframe with themed content", %{conn: conn} do
+  test "preview pane renders themed content via shadow DOM", %{conn: conn} do
     {:ok, _, html} = live(conn, "/editor")
 
     assert html =~ "Preview"
-    assert html =~ ~r/<iframe/
     assert html =~ ~r/id="preview-frame"/
-    assert html =~ ~r/srcdoc=/
-    assert html =~ ~r/&lt;!DOCTYPE html&gt;/
+    assert html =~ ~r/data-preview-html=/
     assert html =~ ~r/&lt;style&gt;/
     assert html =~ ~r/--fabric-color-primary-text/
   end

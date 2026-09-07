@@ -86,6 +86,64 @@ defmodule Manto.Fabric.PageTemplate do
   end
 
   @doc """
+  Render the preview body content (without the HTML document wrapper).
+
+  Produces the `<style>`, `<nav>`, and `<article>` elements suitable for
+  injection into a shadow DOM. Links are root-relative (`/editor/Slug`)
+  so they navigate the top-level page naturally.
+
+  Same keyword assigns as `render/1` (except `:stylesheet_href` and `:custom_css_href`
+  are ignored since the preview always uses `:inline_style`).
+  """
+  @spec render_preview_body(Keyword.t()) :: String.t()
+  def render_preview_body(assigns) do
+    crumbs = breadcrumb_html(assigns[:current], assigns[:prefix])
+
+    meta =
+      [
+        assigns[:published_at] &&
+          ~s(<p class="published">Published on #{assigns[:published_at]}</p>),
+        assigns[:updated_at] && ~s(<p class="updated">Updated on #{assigns[:updated_at]}</p>)
+      ]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join("\n")
+
+    tags =
+      case assigns[:tags] do
+        nil -> nil
+        [] -> nil
+        tags ->
+          ~s(<p class="tags">) <>
+            Enum.map_join(tags, ", ", &tag_link(assigns[:prefix], &1)) <> "</p>"
+      end
+
+    stylesheet =
+      if assigns[:inline_style] do
+        ~s(<style>\n#{assigns[:inline_style]}\n</style>)
+      else
+        ""
+      end
+
+    custom_css =
+      if assigns[:custom_css_href] do
+        ~s(<link rel="stylesheet" href="#{assigns[:custom_css_href]}" />)
+      else
+        ""
+      end
+
+    """
+    #{stylesheet}
+    #{custom_css}
+    <nav>#{crumbs}</nav>
+    <article>
+    #{meta}
+    #{tags}
+    #{assigns[:body]}
+    </article>
+    """
+  end
+
+  @doc """
   Generate breadcrumb trail HTML: `Home / folder / ... / current_label`.
   """
   @spec breadcrumb_html(String.t(), String.t()) :: String.t()

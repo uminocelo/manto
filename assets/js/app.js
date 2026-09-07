@@ -28,13 +28,14 @@ import {CollapseGuard} from "./collapse_guard"
 import {SidebarResizer} from "./sidebar_resizer"
 import {DragDrop} from "./drag_drop"
 import {SyncPreviewFrame} from "./sync_preview_frame"
+import {ShadowPreview} from "./shadow_preview"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, EditorGuard, CollapseGuard, SidebarResizer, DragDrop, SyncPreviewFrame},
+  hooks: {...colocatedHooks, EditorGuard, CollapseGuard, SidebarResizer, DragDrop, SyncPreviewFrame, ShadowPreview},
 })
 
 // Show progress bar on live navigation and form submits
