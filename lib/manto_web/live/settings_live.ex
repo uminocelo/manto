@@ -8,7 +8,7 @@ defmodule MantoWeb.SettingsLive do
   @editable_fields ~w(title description base_url vault_path)
 
   def mount(_params, _session, socket) do
-    {:ok, assign_vault(socket, Site.config())}
+    {:ok, assign_vault(socket, Site.config()) |> assign(current_path: "")}
   end
 
   def handle_params(_params, uri, socket) do

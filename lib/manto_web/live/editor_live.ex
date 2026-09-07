@@ -11,6 +11,7 @@ defmodule MantoWeb.EditorLive do
 
     {:ok,
      assign(socket,
+       current_path: "",
        pages: pages,
        page_entries: page_entries(pages),
        page_titles: Content.list_titles(),
@@ -635,13 +636,13 @@ defmodule MantoWeb.EditorLive do
   attr :sidebar_rename_target, :string, default: nil
   attr :new_in_folder, :string, default: nil
 
-  def render_tree(assigns) do
+  def render_tree(%{parent: parent} = assigns) do
     assigns =
       assign(
         assigns,
         :tree_id,
-        if assigns.parent do
-          "editor-tree-#{slug_id(assigns.parent)}"
+        if parent do
+          "editor-tree-#{slug_id(parent)}"
         else
           "editor-tree"
         end
