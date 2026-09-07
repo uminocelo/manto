@@ -110,8 +110,12 @@ defmodule Manto.Fabric.PageTemplate do
 
     tags =
       case assigns[:tags] do
-        nil -> nil
-        [] -> nil
+        nil ->
+          nil
+
+        [] ->
+          nil
+
         tags ->
           ~s(<p class="tags">) <>
             Enum.map_join(tags, ", ", &tag_link(assigns[:prefix], &1)) <> "</p>"
