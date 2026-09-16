@@ -16,18 +16,36 @@
     </script>
     <script>
       (() => {
-        const setTheme = (theme) => {
-          if (theme === "system") {
-            localStorage.removeItem("phx:theme");
-            document.documentElement.removeAttribute("data-theme");
-          } else {
-            localStorage.setItem("phx:theme", theme);
-            document.documentElement.setAttribute("data-theme", theme);
-          }
+        const media = window.matchMedia("(prefers-color-scheme: dark)");
+        const resolveTheme = (pref) => (pref === "system" ? (media.matches ? "dark" : "light") : pref);
+
+        // "data-theme-preference" tracks the user's raw choice (system/light/dark) so the
+        // toggle can highlight the right button; "data-theme" always holds the resolved
+        // light/dark value so CSS (daisyUI tokens and the `dark:` variant) stays in sync.
+        const applyTheme = (pref) => {
+          document.documentElement.setAttribute("data-theme-preference", pref);
+          document.documentElement.setAttribute("data-theme", resolveTheme(pref));
         };
-        if (!document.documentElement.hasAttribute("data-theme")) {
-          setTheme(localStorage.getItem("phx:theme") || "system");
+
+        const setTheme = (pref) => {
+          if (pref === "system") {
+            localStorage.removeItem("phx:theme");
+          } else {
+            localStorage.setItem("phx:theme", pref);
+          }
+          applyTheme(pref);
+        };
+
+        if (!document.documentElement.hasAttribute("data-theme-preference")) {
+          applyTheme(localStorage.getItem("phx:theme") || "system");
         }
+
+        media.addEventListener("change", () => {
+          if (document.documentElement.getAttribute("data-theme-preference") === "system") {
+            applyTheme("system");
+          }
+        });
+
         window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
 
         window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
@@ -36,5 +54,8 @@
   </head>
   <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
     {@inner_content}
+    <div class="bottom-0 right-0 p-2 text-xs text-gray-400">
+      Manto v{Manto.version()} ({Manto.codename()})
+    </div>
   </body>
 </html>

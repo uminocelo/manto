@@ -1,10 +1,14 @@
 defmodule Manto.MixProject do
   use Mix.Project
 
+  @version "1.0.0"
+  @codename "Alpaca.raw"
+
   def project do
     [
       app: :manto,
-      version: "0.1.0",
+      version: @version,
+      codename: @codename,
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -16,8 +20,6 @@ defmodule Manto.MixProject do
     ]
   end
 
-  # Release config for `mix manto.release`: a self-contained tarball that
-  # bundles the BEAM runtime so end users don't need Elixir installed.
   defp releases do
     [
       manto: [
@@ -26,9 +28,6 @@ defmodule Manto.MixProject do
     ]
   end
 
-  # Configuration for the OTP application.
-  #
-  # Type `mix help compile.app` for more information.
   def application do
     [
       mod: {Manto.Application, []},
@@ -42,13 +41,9 @@ defmodule Manto.MixProject do
     ]
   end
 
-  # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
-  # Specifies your project dependencies.
-  #
-  # Type `mix help deps` for examples and options.
   defp deps do
     [
       {:phoenix, "~> 1.8.1"},
@@ -79,12 +74,6 @@ defmodule Manto.MixProject do
     ]
   end
 
-  # Aliases are shortcuts or tasks specific to the current project.
-  # For example, to install project dependencies and perform other setup tasks, run:
-  #
-  #     $ mix setup
-  #
-  # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
       setup: ["deps.get", "assets.setup", "assets.build", "manto.init"],
@@ -99,4 +88,6 @@ defmodule Manto.MixProject do
       precommit: ["compile --warning-as-errors", "deps.unlock --unused", "format", "test"]
     ]
   end
+
+  def codename, do: @codename
 end
