@@ -149,11 +149,13 @@ defmodule Manto.Fabric.PageTemplate do
 
   @doc """
   Generate breadcrumb trail HTML: `Home / folder / ... / current_label`.
+
+  Index pages (`index.md`, at the vault root or inside a folder) stand for the
+  location they index, so their trail ends at that location: `Home / docs`
+  rather than `Home / docs / index`.
   """
   @spec breadcrumb_html(String.t(), String.t()) :: String.t()
   def breadcrumb_html(context, prefix) do
-    current_label = Path.basename(context)
-
     dirs =
       case Path.dirname(context) do
         "." -> []
@@ -166,8 +168,13 @@ defmodule Manto.Fabric.PageTemplate do
         ~s(<a href="#{prefix}#{folder}/index.html">#{dir}</a>)
       end
 
-    ([~s(<a href="#{prefix}index.html">Home</a>)] ++ ancestor_links ++ [current_label])
-    |> Enum.join(" / ")
+    trail =
+      case Path.basename(context) do
+        "index" -> ancestor_links
+        current_label -> ancestor_links ++ [current_label]
+      end
+
+    Enum.join([~s(<a href="#{prefix}index.html">Home</a>)] ++ trail, " / ")
   end
 
   @doc """

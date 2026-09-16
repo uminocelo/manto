@@ -63,7 +63,25 @@ defmodule Manto.Plugins.TOCTest do
     result = TOC.transform_markdown(md)
 
     assert result =~ ~S"[Hello, World!](#hello-world)"
-    assert result =~ ~S"[Café & Co.](#café-co)"
-    assert result =~ ~S"[Foo / Bar](#foo-bar)"
+    assert result =~ ~S"[Café & Co.](#café--co)"
+    assert result =~ ~S"[Foo / Bar](#foo--bar)"
+  end
+
+  test "ignores headings inside fenced code blocks" do
+    md = """
+    # Title
+
+    ```bash
+    # not a heading
+    echo hi
+    ```
+
+    ## Real Section
+    """
+
+    result = TOC.transform_markdown(md)
+
+    refute result =~ "not-a-heading"
+    assert result =~ ~S"[Real Section](#real-section)"
   end
 end

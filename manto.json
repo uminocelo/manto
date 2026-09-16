@@ -1,8 +1,8 @@
 {
   "base_url": "",
-  "description": "Testing",
+  "description": "Manto is a local-first Markdown CMS. Your content lives as plain .md files, with no database. Edit in a split-pane editor, export a static site, or ship a self-contained release.",
   "fabric": {
-    "active": "curitiba",
+    "active": "dark",
     "themes": {
       "curitiba": {
         "colors": {
@@ -62,6 +62,6 @@
     "toc",
     "header_image"
   ],
-  "title": "Testing Zero",
-  "vault_path": "~/Documents/Testing"
+  "title": "Manto",
+  "vault_path": "pages"
 }

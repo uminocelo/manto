@@ -16,6 +16,8 @@ defmodule Manto.Plugins.TOC do
 
   The plugin scans for `#`, `##`, `###`, etc. headings and builds a nested
   list of anchor links. It works at the Markdown level (before rendering).
+  Headings inside fenced code blocks are ignored, so `# comments` in a shell
+  snippet don't end up in the table of contents.
 
   ### Controlling placement
 
@@ -59,19 +61,32 @@ defmodule Manto.Plugins.TOC do
     markdown
     |> String.split("\n")
     |> Enum.with_index()
-    |> Enum.reduce([], fn {line, idx}, acc ->
-      case Regex.run(heading_regex(), line, capture: :all_but_first) do
-        [level, text] ->
-          depth = String.length(level)
-          slug = heading_slug(text)
-          [{depth, text, slug, idx} | acc]
+    |> Enum.reduce({[], false}, fn {line, idx}, {acc, in_fence?} ->
+      cond do
+        fence?(line) ->
+          {acc, not in_fence?}
 
-        _ ->
-          acc
+        in_fence? ->
+          {acc, in_fence?}
+
+        true ->
+          case Regex.run(heading_regex(), line, capture: :all_but_first) do
+            [level, text] ->
+              depth = String.length(level)
+              slug = heading_slug(text)
+              {[{depth, text, slug, idx} | acc], in_fence?}
+
+            _ ->
+              {acc, in_fence?}
+          end
       end
     end)
+    |> elem(0)
     |> Enum.reverse()
   end
+
+  # a line that opens or closes a fenced code block
+  defp fence?(line), do: Regex.match?(~r/^\s*(```|~~~)/, line)
 
   defp build_toc(headings) do
     min_depth = headings |> Enum.map(fn {d, _, _, _} -> d end) |> Enum.min()
@@ -103,11 +118,11 @@ defmodule Manto.Plugins.TOC do
     end
   end
 
+  # mirrors the anchor ids MDEx generates for headings, so TOC links resolve
   defp heading_slug(text) do
     text
     |> String.downcase()
     |> String.replace(~r/[^\w\s-]/u, "")
-    |> String.trim()
-    |> String.replace(~r/\s+/, "-")
+    |> String.replace(~r/\s/, "-")
   end
 end

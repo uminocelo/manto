@@ -103,6 +103,17 @@ defmodule Manto.Fabric.PageTemplateTest do
       assert html =~ ~r/index\.html/
     end
 
+    test "index pages end their trail at the folder they index" do
+      root = PageTemplate.breadcrumb_html("index", "")
+
+      assert root == ~s(<a href="index.html">Home</a>)
+
+      nested = PageTemplate.breadcrumb_html("docs/index", "../")
+
+      assert nested ==
+               ~s(<a href="../index.html">Home</a> / <a href="../docs/index.html">docs</a>)
+    end
+
     test "nested page shows folder hierarchy" do
       html = PageTemplate.breadcrumb_html("docs/guide/setup", "../..")
 

@@ -149,9 +149,9 @@ date: not-a-date
     assert html =~ "The footnote content."
   end
 
-  test "render_html/1 auto-generates heading anchor links" do
+  test "render_html/1 auto-generates heading ids and anchor links" do
     html = Parser.render_html("## My Section")
-    assert html =~ ~s(<h2>My Section<a href="#my-section")
+    assert html =~ ~s(<h2 id="my-section">My Section<a href="#my-section")
   end
 
   # ── Sanitization ───────────────────────────────────────────────────────
@@ -178,7 +178,7 @@ date: not-a-date
 
     html = Parser.render_html(md)
 
-    assert html =~ "<h1>Hello"
+    assert html =~ ~s(<h1 id="hello">Hello)
     assert html =~ "<strong>bold</strong>"
     assert html =~ ~s(href="https://example.com")
     assert html =~ "<li>list item</li>"

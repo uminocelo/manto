@@ -282,8 +282,49 @@ defmodule Mix.Tasks.Manto.BuildTest do
     Mix.Task.rerun("manto.build", ["--output", output_dir])
 
     html = File.read!(Path.join([output_dir, folder, "index.html"]))
-    assert html =~ ~s(<h1>My Custom Index<a href="#my-custom-index">)
+    assert html =~ ~s(<h1 id="my-custom-index">My Custom Index<a href="#my-custom-index">)
     refute html =~ ~s(<h1>#{folder}</h1>)
+
+    File.rm_rf!(output_dir)
+  end
+
+  test "an explicit vault-root index page wins over the auto-generated index" do
+    index_path = Path.join([:code.priv_dir(:manto), "content", "index.md"])
+    File.write!(index_path, "# My Landing Page")
+    on_exit(fn -> File.rm(index_path) end)
+
+    output_dir =
+      Path.join(System.tmp_dir!(), "manto_build_root_index_#{System.unique_integer([:positive])}")
+
+    Mix.Task.rerun("manto.build", ["--output", output_dir])
+
+    html = File.read!(Path.join(output_dir, "index.html"))
+    assert html =~ ~s(<h1 id="my-landing-page">My Landing Page)
+    assert html =~ ~s(<nav><a href="index.html">Home</a></nav>)
+    refute html =~ ~s(<a href="welcome.html">)
+
+    File.rm_rf!(output_dir)
+  end
+
+  test "rewrites vault image paths in attributes but leaves prose untouched" do
+    page = "Vault-Images-#{System.unique_integer([:positive])}"
+
+    Manto.Content.save_page(page, """
+    Image path in prose: `/vault-images/hero.png`
+
+    ![Hero](/vault-images/images/hero.png)
+    """)
+
+    on_exit(fn -> Manto.Content.delete_page(page) end)
+
+    output_dir =
+      Path.join(System.tmp_dir!(), "manto_build_images_#{System.unique_integer([:positive])}")
+
+    Mix.Task.rerun("manto.build", ["--output", output_dir])
+
+    html = File.read!(Path.join(output_dir, "#{page}.html"))
+    assert html =~ "<code>/vault-images/hero.png</code>"
+    assert html =~ ~s(src="images/hero.png")
 
     File.rm_rf!(output_dir)
   end

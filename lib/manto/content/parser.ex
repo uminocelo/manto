@@ -36,7 +36,13 @@ defmodule Manto.Content.Parser do
         "pre" => ["style"],
         "code" => ["style", "translate", "tabindex"],
         "span" => ["style"],
-        "div" => ["data-line"]
+        "div" => ["data-line"],
+        "h1" => ["id"],
+        "h2" => ["id"],
+        "h3" => ["id"],
+        "h4" => ["id"],
+        "h5" => ["id"],
+        "h6" => ["id"]
       },
       add_allowed_classes: %{
         "div" => [

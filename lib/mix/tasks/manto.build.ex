@@ -19,8 +19,10 @@ defmodule Mix.Tasks.Manto.Build do
   and every folder gets an auto-generated `index.html` listing its pages and
   subfolders. Also generates a root `index.html`, `rss.xml`, and `sitemap.xml`,
   copies content images into the output, and builds a `tag/<tag>.html`
-  taxonomy page per front matter `tags:` value. Site-wide settings (title,
-  description, base URL) come from a `manto.json` file in the project root.
+  taxonomy page per front matter `tags:` value. A page named `index.md`, in the
+  vault root or in any folder, replaces the index generated for that location.
+  Site-wide settings (title, description, base URL) come from a `manto.json`
+  file in the project root.
 
   Options:
 
@@ -163,12 +165,13 @@ defmodule Mix.Tasks.Manto.Build do
     Map.get(fabric, "active", "default")
   end
 
-  # rewrite /vault-images/<path> to a relative path so static output
-  # resolves correctly from any depth (dev server uses the VaultImagesPlug)
+  # rewrite `/vault-images/<path>` attribute values to a relative path so
+  # static output resolves correctly from any depth (the dev server uses the
+  # VaultImagesPlug). Only `src`/`href` values are touched, so the path still
+  # reads correctly when it appears as prose or inside a code span.
   defp rewrite_vault_image_paths(html, prefix) do
-    String.replace(html, ~r/\/vault-images\/[^"'\s]+/, fn path ->
-      filename = path |> String.replace_prefix("/vault-images/", "")
-      prefix <> filename
+    Regex.replace(~r/((?:src|href)=")\/vault-images\/([^"]*)"/, html, fn _, attr, filename ->
+      attr <> prefix <> filename <> "\""
     end)
   end
 
@@ -201,7 +204,16 @@ defmodule Mix.Tasks.Manto.Build do
     |> Enum.sort()
   end
 
+  # auto-generate the root index, unless the vault itself has an `index` page
   defp write_index(output_dir, site, page_data, custom_css_href) do
+    if Enum.any?(page_data, &(&1.name == "index")) do
+      :ok
+    else
+      write_generated_index(output_dir, site, page_data, custom_css_href)
+    end
+  end
+
+  defp write_generated_index(output_dir, site, page_data, custom_css_href) do
     page_items =
       child_pages(page_data, "")
       |> Enum.map(fn page ->
