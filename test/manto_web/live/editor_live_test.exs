@@ -719,6 +719,9 @@ defmodule MantoWeb.EditorLiveTest do
     assert html =~ ~r/data-preview-html=/
     assert html =~ ~r/&lt;style&gt;/
     assert html =~ ~r/--fabric-color-primary-text/
+
+    assert html =~ "max-width: none"
+    assert html =~ "width: 100%"
   end
 
   test "editing markdown updates the preview_html assign", %{conn: conn} do

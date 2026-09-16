@@ -912,6 +912,17 @@ defmodule MantoWeb.EditorLive do
       |> String.replace(":root", ":host")
       |> String.replace(~r/\bbody\s*\{/, ":host {")
 
+    css =
+      css <>
+        """
+        :host {
+          max-width: none;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+        }
+        """
+
     preview_html =
       PageTemplate.render_preview_body(
         site: site,
