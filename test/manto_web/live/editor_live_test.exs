@@ -710,4 +710,33 @@ defmodule MantoWeb.EditorLiveTest do
 
     assert html =~ "already exists"
   end
+
+  test "preview pane renders themed content via shadow DOM", %{conn: conn} do
+    {:ok, _, html} = live(conn, "/editor")
+
+    assert html =~ "Preview"
+    assert html =~ ~r/id="preview-frame"/
+    assert html =~ ~r/data-preview-html=/
+    assert html =~ ~r/&lt;style&gt;/
+    assert html =~ ~r/--fabric-color-primary-text/
+
+    assert html =~ "max-width: none"
+    assert html =~ "width: 100%"
+  end
+
+  test "editing markdown updates the preview_html assign", %{conn: conn} do
+    page = "Preview-Update-#{System.unique_integer([:positive])}"
+    path = Path.join([:code.priv_dir(:manto), "content", "#{page}.md"])
+    on_exit(fn -> File.rm(path) end)
+
+    {:ok, view, _html} = live(conn, "/editor/#{page}")
+
+    html =
+      view
+      |> form("form[phx-change=update]")
+      |> render_change(%{markdown: "# Hello World"})
+
+    assert html =~ "Hello World"
+    assert html =~ ~r/&lt;style&gt;/
+  end
 end

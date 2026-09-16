@@ -6,10 +6,58 @@ defmodule Manto.Content.Parser do
   alias MDEx
 
   @mdex_opts [
-    extension: [front_matter_delimiter: "---", table: true, shortcodes: true],
-    syntax_highlight: [engine: :lumis, opts: [formatter: {:html_inline, theme: "onedark"}]]
+    extension: [
+      front_matter_delimiter: "---",
+      table: true,
+      shortcodes: true,
+      strikethrough: true,
+      tasklist: true,
+      autolink: true,
+      footnotes: true,
+      header_id_prefix: "",
+      alerts: true,
+      block_directive: true,
+      wikilinks_title_after_pipe: true
+    ],
+    render: [unsafe: true],
+    syntax_highlight: [
+      engine: :lumis,
+      opts: [
+        formatter:
+          {:html_multi_themes,
+           themes: [light: "github_light", dark: "onedark"], default_theme: "light-dark()"}
+      ]
+    ],
+    sanitize: [
+      add_tags: ["input"],
+      add_tag_attributes: %{
+        "a" => ["data-wikilink"],
+        "input" => ["disabled", "checked", "type"],
+        "pre" => ["style"],
+        "code" => ["style", "translate", "tabindex"],
+        "span" => ["style"],
+        "div" => ["data-line"]
+      },
+      add_allowed_classes: %{
+        "div" => [
+          "markdown-alert",
+          "markdown-alert-note",
+          "markdown-alert-tip",
+          "markdown-alert-warning",
+          "markdown-alert-important",
+          "markdown-alert-caution",
+          "info",
+          "warning",
+          "tip",
+          "danger",
+          "l-line"
+        ],
+        "p" => ["markdown-alert-title"],
+        "pre" => ["lumis", "lumis-themes", "dark", "light"],
+        "code" => ["language-elixir"]
+      }
+    ]
   ]
-  @wiki_link_regex ~r/\[\[([^\]]+)\]\]/
 
   @doc """
   Render Markdown into safe HTML string.
@@ -25,12 +73,14 @@ defmodule Manto.Content.Parser do
     metadata = Keyword.get(opts, :metadata, %{})
 
     markdown
-    |> rewrite_wiki_links(opts)
     |> Manto.Plugin.run_markdown()
     |> MDEx.to_html(@mdex_opts)
     |> case do
-      {:ok, html} -> Manto.Plugin.run_html(html, metadata)
-      _ -> ""
+      {:ok, html} ->
+        html |> Manto.Plugin.run_html(metadata) |> rewrite_wikilink_hrefs(opts)
+
+      _ ->
+        ""
     end
   end
 
@@ -63,13 +113,13 @@ defmodule Manto.Content.Parser do
     Map.get(metadata, "draft", false) == true or Map.get(metadata, "published", true) == false
   end
 
-  defp rewrite_wiki_links(markdown, opts) do
+  defp rewrite_wikilink_hrefs(html, opts) do
     prefix = Keyword.get(opts, :link_prefix, "/editor/")
     suffix = Keyword.get(opts, :link_suffix, "")
 
-    Regex.replace(@wiki_link_regex, markdown, fn _, name ->
-      slug = slugify(name)
-      "[#{name}](#{prefix}#{slug}#{suffix})"
+    Regex.replace(~r/<a href="([^"]+)" data-wikilink="true"/, html, fn _, href ->
+      slug = href |> URI.decode() |> slugify()
+      ~s(<a href="#{prefix}#{slug}#{suffix}" data-wikilink="true")
     end)
   end
 
@@ -80,8 +130,8 @@ defmodule Manto.Content.Parser do
   """
   @spec wiki_link_targets(String.t()) :: [String.t()]
   def wiki_link_targets(markdown) when is_binary(markdown) do
-    Regex.scan(@wiki_link_regex, markdown)
-    |> Enum.map(fn [_, name] -> slugify(name) end)
+    Regex.scan(~r/\[\[([^\]]+)\]\]/, markdown)
+    |> Enum.map(fn [_, name] -> name |> String.split("|") |> hd() |> slugify() end)
     |> Enum.uniq()
   end
 

@@ -13,7 +13,8 @@ defmodule Manto.SiteTest do
              "description" => "A local-first Markdown site",
              "base_url" => "",
              "vault_path" => "priv/content",
-             "plugins" => []
+             "plugins" => [],
+             "fabric" => %{"active" => "default", "themes" => %{}}
            }
   end
 
@@ -83,5 +84,21 @@ defmodule Manto.SiteTest do
     assert config["description"] == "My notes"
     assert config["title"] == "Manto"
     assert config["vault_path"] == "priv/content"
+  end
+
+  test "existing manto.json without fabric key still loads" do
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "manto-no-fabric-#{System.unique_integer([:positive])}.json"
+      )
+
+    File.write!(path, ~s({"title": "No Fabric"}))
+    on_exit(fn -> File.rm(path) end)
+
+    config = Site.config(path: path)
+
+    assert config["title"] == "No Fabric"
+    assert config["fabric"] == %{"active" => "default", "themes" => %{}}
   end
 end

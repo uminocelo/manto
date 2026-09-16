@@ -2,12 +2,16 @@ defmodule MantoWeb.EditorLive do
   use MantoWeb, :live_view
   alias Manto.Content
   alias Manto.Content.Parser
+  alias Manto.Fabric
+  alias Manto.Fabric.PageTemplate
+  alias Manto.Site
 
   def mount(_params, _session, socket) do
     pages = Content.list_pages()
 
     {:ok,
      assign(socket,
+       current_path: "",
        pages: pages,
        page_entries: page_entries(pages),
        page_titles: Content.list_titles(),
@@ -19,13 +23,13 @@ defmodule MantoWeb.EditorLive do
      )}
   end
 
-  def handle_params(%{"page" => page}, _uri, socket) when is_list(page) do
+  def handle_params(%{"page" => page}, uri, socket) when is_list(page) do
     page = Enum.join(page, "/")
-    {:noreply, open_page(socket, page)}
+    {:noreply, socket |> assign(current_path: URI.parse(uri).path) |> open_page(page)}
   end
 
-  def handle_params(_params, _uri, socket) do
-    {:noreply, open_page(socket, "welcome")}
+  def handle_params(_params, uri, socket) do
+    {:noreply, socket |> assign(current_path: URI.parse(uri).path) |> open_page("welcome")}
   end
 
   defp open_page(socket, page) do
@@ -632,11 +636,20 @@ defmodule MantoWeb.EditorLive do
   attr :sidebar_rename_target, :string, default: nil
   attr :new_in_folder, :string, default: nil
 
-  def render_tree(assigns) do
-    tree_id = if assigns.parent, do: "editor-tree-#{slug_id(assigns.parent)}", else: "editor-tree"
+  def render_tree(%{parent: parent} = assigns) do
+    assigns =
+      assign(
+        assigns,
+        :tree_id,
+        if parent do
+          "editor-tree-#{slug_id(parent)}"
+        else
+          "editor-tree"
+        end
+      )
 
     ~H"""
-    <ul id={tree_id} phx-hook="DragDrop">
+    <ul id={@tree_id} phx-hook="DragDrop">
       <li
         :for={entry <- children_at(@entries, @parent, @collapsed_folders, @filter)}
         style={"padding-left: #{elem(entry, 0) * 16}px"}
@@ -887,16 +900,65 @@ defmodule MantoWeb.EditorLive do
 
   defp load_page(socket, page, body, opts) do
     metadata = Parser.metadata(body)
+    html = Parser.render_html(body, metadata: metadata)
+    site = Site.config()
+    theme = Fabric.active_theme()
+
+    # Generate shadow-DOM-safe CSS: :root and body selectors don't work in
+    # shadow DOM — :host does. The shadow host (the div) receives the layout
+    # and color properties, and the content inherits them.
+    css =
+      Fabric.render_css(theme)
+      |> String.replace(":root", ":host")
+      |> String.replace(~r/\bbody\s*\{/, ":host {")
+
+    css =
+      css <>
+        """
+        :host {
+          max-width: none;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+        }
+        """
+
+    preview_html =
+      PageTemplate.render_preview_body(
+        site: site,
+        title: Map.get(metadata, "title", Path.basename(page)),
+        body: html,
+        prefix: "",
+        current: page,
+        published_at: Map.get(metadata, "published_at"),
+        updated_at: Map.get(metadata, "updated_at"),
+        tags: metadata |> Map.get("tags", []) |> List.wrap(),
+        inline_style: css,
+        custom_css_href: custom_css_href(theme)
+      )
 
     assign(socket,
       page: page,
       body: body,
-      html: Parser.render_html(body, metadata: metadata),
+      html: html,
+      preview_html: preview_html,
       metadata: metadata,
       draft: Parser.draft?(metadata),
       broken_links: Content.broken_wiki_links(body, page),
       saved: Keyword.get(opts, :saved, false),
       new: Keyword.get(opts, :new, false)
     )
+  end
+
+  # return the custom CSS href if the theme has one and it's a URL
+  # (local files are already inlined by render_css)
+  defp custom_css_href(theme) do
+    path = theme.custom_css
+
+    if path != "" and String.starts_with?(path, "http") do
+      path
+    else
+      nil
+    end
   end
 end

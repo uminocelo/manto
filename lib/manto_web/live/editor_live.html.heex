@@ -1,149 +1,158 @@
-<Layouts.flash_group flash={@flash} />
+<Layouts.app current_path={@current_path}>
+  <Layouts.flash_group flash={@flash} />
 
-<main class="flex h-[calc(100vh-68px)] bg-gray-50 dark:bg-gray-900">
-  <nav
-    id="editor-nav"
-    class="w-64 shrink-0 p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto relative"
-    phx-hook="SidebarResizer"
-  >
-    <div id="editor-nav-collapse" phx-hook="CollapseGuard">
-      <div class="mb-2">
-        <form phx-change="filter" id="filter-form">
+  <main class="flex h-[calc(100vh-68px)] bg-gray-50 dark:bg-gray-900">
+    <nav
+      id="editor-nav"
+      class="w-64 shrink-0 p-4 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-y-auto relative"
+      phx-hook="SidebarResizer"
+    >
+      <div id="editor-nav-collapse" phx-hook="CollapseGuard">
+        <div class="mb-2">
+          <form phx-change="filter" id="filter-form">
+            <input
+              type="text"
+              name="filter"
+              placeholder="Filter pages..."
+              value={@filter}
+              class="w-full px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+            />
+          </form>
+        </div>
+
+        <.render_tree
+          entries={@page_entries}
+          collapsed_folders={@collapsed_folders}
+          current_page={@page}
+          draft_pages={@draft_pages}
+          page_titles={@page_titles}
+          filter={@filter}
+          sidebar_rename_target={@sidebar_rename_target}
+          new_in_folder={@new_in_folder}
+        />
+
+        <form phx-submit="new_page" class="mt-4 flex gap-1">
           <input
             type="text"
-            name="filter"
-            placeholder="Filter pages..."
-            value={@filter}
-            class="w-full px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+            name="name"
+            placeholder={new_page_placeholder(@page)}
+            value={new_page_default(@page)}
+            class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
           />
+          <button
+            type="submit"
+            class="px-2 py-1 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            New
+          </button>
         </form>
       </div>
-
-      <.render_tree
-        entries={@page_entries}
-        collapsed_folders={@collapsed_folders}
-        current_page={@page}
-        draft_pages={@draft_pages}
-        page_titles={@page_titles}
-        filter={@filter}
-        sidebar_rename_target={@sidebar_rename_target}
-        new_in_folder={@new_in_folder}
-      />
-
-      <form phx-submit="new_page" class="mt-4 flex gap-1">
-        <input
-          type="text"
-          name="name"
-          placeholder={new_page_placeholder(@page)}
-          value={new_page_default(@page)}
-          class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
-        />
-        <button
-          type="submit"
-          class="px-2 py-1 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-        >
-          New
-        </button>
-      </form>
-    </div>
-    <div
-      id="sidebar-resize-handle"
-      class="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-400 active:bg-indigo-600"
-    >
-    </div>
-  </nav>
-
-  <section class="flex-1 p-6 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
-    <h2 class="text-lg font-semibold mb-4">
-      Editing: {Map.get(@metadata, "title", @page)}
-      <span class="text-gray-400 text-sm">({@page}.md)</span>
-      <%= if @draft do %>
-        <span id="draft-badge" class="ml-2 badge badge-warning badge-sm">Draft</span>
-      <% end %>
-    </h2>
-    <p class="text-xs text-gray-400 mb-2">
-      {if @metadata["published_at"], do: "Published #{@metadata["published_at"]}"}
-      {if @metadata["updated_at"], do: " · Updated #{@metadata["updated_at"]}"}
-    </p>
-    <%= if @new do %>
-      <p id="new-draft-notice" class="text-sm font-medium text-amber-600 dark:text-amber-400 mb-2">
-        Draft created!
-      </p>
-    <% end %>
-    <div class="flex items-center gap-2 mb-4">
-      <form phx-submit="rename_page" class="flex gap-1">
-        <input
-          type="text"
-          name="name"
-          value={@page}
-          placeholder="New name..."
-          class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
-        />
-        <button
-          type="submit"
-          class="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
-        >
-          Rename
-        </button>
-      </form>
-      <button
-        type="button"
-        phx-click="delete_page"
-        phx-confirm={"Delete \"#{@page}\"?"}
-        class="px-2 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+      <div
+        id="sidebar-resize-handle"
+        class="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-indigo-400 active:bg-indigo-600"
       >
-        Delete
-      </button>
-    </div>
+      </div>
+    </nav>
 
-    <.form
-      for={%{}}
-      as={:editor}
-      phx-change="update"
-      phx-submit="save"
-      id="editor-form"
-      phx-hook="EditorGuard"
-      data-page={@page}
-      class="flex flex-col flex-1"
-    >
-      <textarea
-        id="markdown-editor"
-        name="markdown"
-        class="flex-1 w-full p-4 font-mono text-sm border rounded-md
+    <section class="flex-1 p-6 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col">
+      <h2 class="text-lg font-semibold mb-4">
+        Editing: {Map.get(@metadata, "title", @page)}
+        <span class="text-gray-400 text-sm">({@page}.md)</span>
+        <%= if @draft do %>
+          <span id="draft-badge" class="ml-2 badge badge-warning badge-sm">Draft</span>
+        <% end %>
+      </h2>
+      <p class="text-xs text-gray-400 mb-2">
+        {if @metadata["published_at"], do: "Published #{@metadata["published_at"]}"}
+        {if @metadata["updated_at"], do: " · Updated #{@metadata["updated_at"]}"}
+      </p>
+      <%= if @new do %>
+        <p
+          id="new-draft-notice"
+          class="text-sm font-medium text-amber-600 dark:text-amber-400 mb-2"
+        >
+          Draft created!
+        </p>
+      <% end %>
+      <div class="flex items-center gap-2 mb-4">
+        <form phx-submit="rename_page" class="flex gap-1">
+          <input
+            type="text"
+            name="name"
+            value={@page}
+            placeholder="New name..."
+            class="min-w-0 flex-1 px-2 py-1 text-sm border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700"
+          />
+          <button
+            type="submit"
+            class="px-2 py-1 text-sm bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
+          >
+            Rename
+          </button>
+        </form>
+        <button
+          type="button"
+          phx-click="delete_page"
+          phx-confirm={"Delete \"#{@page}\"?"}
+          class="px-2 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+        >
+          Delete
+        </button>
+      </div>
+
+      <.form
+        for={%{}}
+        as={:editor}
+        phx-change="update"
+        phx-submit="save"
+        id="editor-form"
+        phx-hook="EditorGuard"
+        data-page={@page}
+        class="flex flex-col flex-1"
+      >
+        <textarea
+          id="markdown-editor"
+          name="markdown"
+          class="flex-1 w-full p-4 font-mono text-sm border rounded-md
                        bg-gray-50 dark:bg-gray-900
                        text-gray-900 dark:text-gray-100
                        focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-        rows="20"
-      ><%= @body %></textarea>
+          rows="20"
+        ><%= @body %></textarea>
 
-      <div class="mt-4 flex items-center">
-        <button
-          type="submit"
-          class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-        >
-          Save
-        </button>
-      </div>
-      <%= if @broken_links != [] do %>
-        <div id="broken-links" class="mt-4">
-          <h3 class="text-xs font-semibold uppercase text-gray-500 mb-1">Broken links</h3>
-          <ul class="space-y-1">
-            <li
-              :for={target <- @broken_links}
-              class="text-sm text-red-600 dark:text-red-400"
-            >
-              [[{target}]]
-            </li>
-          </ul>
+        <div class="mt-4 flex items-center">
+          <button
+            type="submit"
+            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            Save
+          </button>
         </div>
-      <% end %>
-    </.form>
-  </section>
+        <%= if @broken_links != [] do %>
+          <div id="broken-links" class="mt-4">
+            <h3 class="text-xs font-semibold uppercase text-gray-500 mb-1">Broken links</h3>
+            <ul class="space-y-1">
+              <li
+                :for={target <- @broken_links}
+                class="text-sm text-red-600 dark:text-red-400"
+              >
+                [[{target}]]
+              </li>
+            </ul>
+          </div>
+        <% end %>
+      </.form>
+    </section>
 
-  <section class="flex-1 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-    <h2 class="text-lg font-semibold mb-4">Preview</h2>
-    <article class="prose dark:prose-invert max-w-none">
-      {Phoenix.HTML.raw(@html)}
-    </article>
-  </section>
-</main>
+    <section class="flex-1 p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+      <h2 class="text-lg font-semibold mb-4">Preview</h2>
+      <div
+        id="preview-frame"
+        phx-hook="ShadowPreview"
+        data-preview-html={@preview_html}
+        class="block w-full h-full min-h-[80vh] p-2 border-0 rounded-lg overflow-y-auto"
+      >
+      </div>
+    </section>
+  </main>
+</Layouts.app>
